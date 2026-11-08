@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Світло · графік</title>
+<meta name="description" content="Графік відключень світла по черзі: статус зараз, сьогодні, завтра, тиждень. Telegram Mini App.">
+<meta name="theme-color" content="#151d27">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💡%3C/text%3E%3C/svg%3E">
+<script src="https://telegram.org/js/telegram-web-app.js?59"></script>
+<style>
+:root{
+  --bg:#151d27; --card:#1f2a37; --card2:#253242; --line:#2f3e50;
+  --text:#eef3f8; --muted:#8fa1b5; --accent:#3d9cf5;
+  --on:#3ac569; --on-dim:#2a6b46; --off:#ef5b57; --off-dim:#7a3b3f; --maybe:#e9a93a;
+  --radius:18px;
+}
+:root[data-theme="light"]{
+  --bg:#eef2f6; --card:#ffffff; --card2:#f3f6f9; --line:#dfe6ee;
+  --text:#14202c; --muted:#617384; --accent:#2481cc;
+  --on:#2fb35d; --on-dim:#a5dcb8; --off:#e5484d; --off-dim:#f1b2b4; --maybe:#e09a1f;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
+body{padding:14px 14px calc(18px + env(safe-area-inset-bottom))}
+.wrap{max-width:560px;margin:0 auto}
+header{display:flex;align-items:center;gap:10px;margin:2px 2px 12px}
+header h1{font-size:22px;margin:0;font-weight:700;letter-spacing:-.2px}
+header .sub{color:var(--muted);font-size:14px}
+header .grow{flex:1;min-width:0}
+.iconbtn{border:0;background:var(--card);color:var(--text);width:38px;height:38px;border-radius:12px;
+  font-size:18px;cursor:pointer;display:grid;place-items:center}
+.iconbtn:active{transform:scale(.95)}
+.card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.card h2{font-size:17px;margin:0 0 12px;font-weight:700}
+.muted{color:var(--muted)}
+/* status */
+.status{display:flex;gap:14px;align-items:center}
+.bulb{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-size:28px;flex:none;
+  background:var(--on);box-shadow:0 0 0 6px color-mix(in srgb,var(--on) 18%,transparent)}
+.status.off .bulb{background:var(--off);box-shadow:0 0 0 6px color-mix(in srgb,var(--off) 18%,transparent)}
+.status.maybe .bulb{background:var(--maybe);box-shadow:0 0 0 6px color-mix(in srgb,var(--maybe) 18%,transparent)}
+.status .big{font-size:26px;font-weight:800;line-height:1.1}
+.status .until{margin-top:4px;color:var(--muted)}
+.status .until b{color:var(--text)}
+.statusCard{background:linear-gradient(135deg,color-mix(in srgb,var(--on) 16%,var(--card)),var(--card))}
+.statusCard.off{background:linear-gradient(135deg,color-mix(in srgb,var(--off) 18%,var(--card)),var(--card))}
+.statusCard.maybe{background:linear-gradient(135deg,color-mix(in srgb,var(--maybe) 18%,var(--card)),var(--card))}
+.next{border-top:1px solid var(--line);margin-top:14px;padding-top:12px;display:grid;gap:6px}
+.next div{display:flex;justify-content:space-between;gap:10px}
+.next b{white-space:nowrap}
+.progress{height:6px;background:var(--line);border-radius:4px;margin-top:12px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--on);border-radius:4px}
+.statusCard.off .progress i{background:var(--off)} .statusCard.maybe .progress i{background:var(--maybe)}
+/* tabs */
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.tab{border:1.5px solid var(--line);background:transparent;color:var(--text);border-radius:14px;padding:9px 10px;
+  text-align:left;cursor:pointer;font:inherit}
+.tab small{display:block;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab b{font-size:15px}
+.tab.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.totals{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+.dot{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.d-on{background:var(--on)} .d-off{background:var(--off)}
+.d-maybe{background:repeating-linear-gradient(135deg,var(--maybe) 0 3px,color-mix(in srgb,var(--maybe) 45%,transparent) 3px 6px)}
+/* bar */
+.bar{position:relative;display:flex;gap:1.5px;height:54px;border-radius:10px;overflow:visible}
+.slot{flex:1;border-radius:2px;background:var(--on);position:relative;cursor:pointer}
+.slot.s0{background:var(--off)}
+.slot.s2{background:repeating-linear-gradient(135deg,var(--maybe) 0 4px,color-mix(in srgb,var(--maybe) 45%,transparent) 4px 8px)}
+.slot.past{opacity:.38}
+.slot.chg::after{content:"";position:absolute;left:50%;bottom:-7px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--accent)}
+.slot:first-child{border-radius:8px 2px 2px 8px}.slot:last-child{border-radius:2px 8px 8px 2px}
+.now{position:absolute;top:-8px;bottom:-4px;width:3px;margin-left:-1.5px;background:var(--text);border-radius:2px;pointer-events:none}
+.now::before{content:"";position:absolute;top:-4px;left:50%;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;background:var(--text)}
+.hours{display:flex;justify-content:space-between;color:var(--muted);font-size:12.5px;margin-top:8px;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{background:var(--card2);border-radius:20px;padding:7px 12px;font-variant-numeric:tabular-nums;font-size:14.5px}
+.chip .dot{border-radius:50%}
+.chip.past{opacity:.5}
+.chip small{color:var(--muted);margin-left:4px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:14px;color:var(--muted);font-size:13px}
+.note{background:color-mix(in srgb,var(--maybe) 14%,transparent);border-radius:12px;padding:9px 12px;margin-bottom:12px;font-size:14px}
+.note.info{background:color-mix(in srgb,var(--accent) 13%,transparent)}
+.tip{min-height:20px;margin-top:8px;font-size:13.5px;color:var(--muted)}
+/* week */
+.week{display:grid;grid-template-columns:28px 1fr;gap:5px 8px;align-items:center}
+.week .dn{font-size:13px;color:var(--muted)}
+.week .dn.today{color:var(--text);font-weight:700}
+.wrow{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;height:24px;cursor:pointer}
+.cell{display:flex;border-radius:3px;overflow:hidden;position:relative}
+.cell i{flex:1;background:var(--on)}
+.cell i.s0{background:var(--off)}
+.cell i.s2{background:repeating-linear-gradient(135deg,var(--maybe) 0 3px,color-mix(in srgb,var(--maybe) 40%,transparent) 3px 6px)}
+.cell.cur{outline:2px solid var(--text);outline-offset:0;z-index:1}
+.whours{grid-column:2;display:flex;justify-content:space-between;color:var(--muted);font-size:12px}
+/* sheet */
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;z-index:9}
+.sheet.open{display:flex}
+.sheet .panel{background:var(--card);width:100%;max-width:560px;margin:0 auto;border-radius:20px 20px 0 0;
+  padding:18px 16px calc(20px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 16px}
+.pill{border:1.5px solid var(--line);background:var(--card2);color:var(--text);border-radius:12px;padding:10px 4px;font:inherit;cursor:pointer}
+.pill.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--card2));font-weight:700}
+.grid.r2{grid-template-columns:repeat(2,1fr)}
+.btn{width:100%;border:0;border-radius:14px;padding:13px;font:600 16px/1 inherit;background:var(--accent);color:#fff;cursor:pointer}
+footer{color:var(--muted);font-size:12.5px;text-align:center;line-height:1.55;margin-top:6px}
+footer a{color:var(--muted)}
+.skeleton{height:120px;border-radius:var(--radius);background:linear-gradient(90deg,var(--card),var(--card2),var(--card));background-size:200% 100%;animation:sh 1.2s infinite;margin-bottom:12px}
+@keyframes sh{to{background-position:-200% 0}}
+body.embed header .iconbtn#share,body.embed footer .disc{display:none}
+@media (max-width:380px){.status .big{font-size:23px}.tab{padding:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="grow">
+      <h1>💡 <span data-t="title"></span></h1>
+      <div class="sub" id="where"></div>
+    </div>
+    <button class="iconbtn" id="refresh" aria-label="refresh">⟳</button>
+    <button class="iconbtn" id="share" aria-label="share">⤴</button>
+    <button class="iconbtn" id="settings" aria-label="settings">⚙</button>
+  </header>
+
+  <div id="app"><div class="skeleton"></div><div class="skeleton" style="height:220px"></div></div>
+
+  <footer>
+    <div id="upd"></div>
+    <div class="disc"><span data-t="disclaimer"></span> · <a href="https://github.com/Baskerville42/outage-data-ua" target="_blank" rel="noopener">outage-data-ua</a></div>
+  </footer>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="panel">
+    <h2 data-t="region"></h2>
+    <div class="grid r2" id="regions"></div>
+    <h2 data-t="queue"></h2>
+    <div class="grid" id="queues"></div>
+    <h2 data-t="lang"></h2>
+    <div class="grid r2" id="langs"></div>
+    <button class="btn" id="done" data-t="done"></button>
+  </div>
+</div>
+
+<script>
+"use strict";
+const TZ = "Europe/Kyiv";
+const MIRROR = "Baskerville42/outage-data-ua";
+const REGIONS = {
+  "odesa":       {uk:"Одещина",          ru:"Одесская обл."},
+  "kyiv":        {uk:"Київ",             ru:"Киев"},
+  "kyiv-region": {uk:"Київщина",         ru:"Киевская обл."},
+  "dnipro":      {uk:"Дніпропетровщина", ru:"Днепропетровская обл."}
+};
+const T = {
+  uk:{title:"Графік відключень",queue:"Черга",region:"Регіон",lang:"Мова",done:"Готово",
+    on:"Світло є",off:"Світла немає",maybe:"Можливе відключення",
+    until:"до",in:"через",turnOn:"Увімкнуть о",nextOff:"Наступне відключення",nextMaybe:"Можливе відключення",
+    noOff:"Відключень не заплановано",today:"Сьогодні",tomorrow:"Завтра",week:"Тиждень",
+    waiting:"очікується графік",forecast:"прогноз",noLight:"Без світла",withLight:"Зі світлом",maybeH:"Можливо",
+    h:"год",m:"хв",legOn:"є світло",legOff:"немає світла",legMaybe:"можливе відключення",legNow:"зараз",legChg:"змінено",
+    weekTitle:"Типовий тиждень",weekNote:"Базовий шаблон оператора («можливі відключення»). Фактичний графік на день може відрізнятися. Натисніть день, щоб відкрити.",
+    presetToday:"Точного графіка на сьогодні немає — показано можливі відключення з тижневого шаблону.",
+    presetTomorrow:"Графік на завтра ще не опубліковано — показано прогноз із тижневого шаблону.",
+    changed:"Графік змінено", operator:"Дані оператора", checked:"перевірено о", offline:"Немає мережі — показано збережені дані",
+    disclaimer:"Неофіційний застосунок, не пов'язаний з енергокомпаніями", tomorrowAt:"завтра о", at:"о",
+    mon:["Пн","Вт","Ср","Чт","Пт","Сб","Нд"], months:["січ.","лют.","бер.","квіт.","трав.","черв.","лип.","серп.","вер.","жовт.","лист.","груд."],
+    copied:"Графік скопійовано", shareHead:"Графік відключень", noData:"Не вдалося завантажити дані. Спробуйте ще раз.",
+    tapSlot:"Натисніть на шкалу, щоб побачити час", left:"залишилось", whole:"весь день"},
+  ru:{title:"График отключений",queue:"Очередь",region:"Регион",lang:"Язык",done:"Готово",
+    on:"Свет есть",off:"Света нет",maybe:"Возможно отключение",
+    until:"до",in:"через",turnOn:"Включат в",nextOff:"Следующее отключение",nextMaybe:"Возможное отключение",
+    noOff:"Отключений не запланировано",today:"Сегодня",tomorrow:"Завтра",week:"Неделя",
+    waiting:"ждём график",forecast:"прогноз",noLight:"Без света",withLight:"Со светом",maybeH:"Возможно",
+    h:"ч",m:"мин",legOn:"свет есть",legOff:"света нет",legMaybe:"возможно отключение",legNow:"сейчас",legChg:"изменено",
+    weekTitle:"Типичная неделя",weekNote:"Базовый шаблон оператора («возможные отключения»). Фактический график на день может отличаться. Нажмите на день, чтобы открыть.",
+    presetToday:"Точного графика на сегодня нет — показаны возможные отключения из недельного шаблона.",
+    presetTomorrow:"График на завтра ещё не опубликован — показан прогноз из недельного шаблона.",
+    changed:"График изменён", operator:"Данные оператора", checked:"проверено в", offline:"Нет сети — показаны сохранённые данные",
+    disclaimer:"Неофициальное приложение, не связано с энергокомпаниями", tomorrowAt:"завтра в", at:"в",
+    mon:["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], months:["янв.","фев.","мар.","апр.","мая","июн.","июл.","авг.","сен.","окт.","ноя.","дек."],
+    copied:"График скопирован", shareHead:"График отключений", noData:"Не удалось загрузить данные. Попробуйте ещё раз.",
+    tapSlot:"Нажмите на шкалу, чтобы увидеть время", left:"осталось", whole:"весь день"}
+};
+
+const tg = window.Telegram && Telegram.WebApp && Telegram.WebApp.initData !== undefined ? Telegram.WebApp : null;
+const qs = new URLSearchParams(location.search);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+// ---------- settings ----------
+let S = Object.assign({region:"odesa", queue:"2.2", lang:null}, store.get("svitlo:settings", {}));
+(function applyParams(){
+  // ?r=odesa&q=2.2  or Telegram start_param  "odesa_2_2"
+  const sp = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || qs.get("tgWebAppStartParam") || "";
+  const m = sp.match(/^([a-z-]+)_(\d)_(\d)$/);
+  if (m && REGIONS[m[1]]) { S.region = m[1]; S.queue = m[2] + "." + m[3]; }
+  if (qs.get("r") && REGIONS[qs.get("r")]) S.region = qs.get("r");
+  if (qs.get("q") && /^\d\.\d$/.test(qs.get("q"))) S.queue = qs.get("q");
+  if (qs.get("lang") && T[qs.get("lang")]) S.lang = qs.get("lang");
+  if (!S.lang) {
+    const lc = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || navigator.language || "uk";
+    S.lang = /^ru/.test(lc) ? "ru" : "uk";
+  }
+  if (qs.get("embed")) document.body.classList.add("embed");
+})();
+const L = () => T[S.lang];
+
+// ---------- theme ----------
+function applyTheme(){
+  let dark = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
+  if (tg && tg.colorScheme) dark = tg.colorScheme === "dark";
+  if (qs.get("theme")) dark = qs.get("theme") !== "light";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  if (tg) { try { tg.setHeaderColor(bg); tg.setBackgroundColor(bg); tg.setBottomBarColor && tg.setBottomBarColor(bg); } catch(e){} }
+}
+if (tg) { tg.ready(); tg.expand(); tg.onEvent("themeChanged", applyTheme); }
+applyTheme();
+const haptic = (t="light") => { try { tg && tg.HapticFeedback.impactOccurred(t); } catch(e){} };
+
+// ---------- Kyiv time helpers ----------
+const fmtParts = new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"});
+function kyiv(d = new Date()){
+  const p = {}; fmtParts.formatToParts(d).forEach(x => p[x.type] = x.value);
+  return {date:`${p.year}-${p.month}-${p.day}`, h:+p.hour, m:+p.minute, s:+p.second};
+}
+function addDays(ds, n){ const [y,m,d] = ds.split("-").map(Number); return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10); }
+function weekday(ds){ const [y,m,d] = ds.split("-").map(Number); return (new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7+1; } // 1=Mon
+function hhmm(slot){ const t = slot*30; return String(Math.floor(t/60)%24).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); }
+function endLabel(slot){ return slot === 48 ? "24:00" : hhmm(slot); }
+function dur(min){ min = Math.max(0, Math.round(min)); const h = Math.floor(min/60), m = min%60;
+  return (h ? `${h} ${L().h}` : "") + (h && m ? " " : "") + (m || !h ? `${m} ${L().m}` : ""); }
+function hoursStr(n){ return (Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")) + " " + L().h; }
+function dayTitle(ds){ const [y,m,d] = ds.split("-").map(Number); return `${L().mon[weekday(ds)-1].toLowerCase()}, ${d} ${L().months[m-1]}`; }
+
+// ---------- data ----------
+// slot values: 1 = light, 0 = no light, 2 = possible outage
+const MAP = {yes:[1,1], no:[0,0], first:[0,1], second:[1,0], maybe:[2,2], mfirst:[2,1], msecond:[1,2]};
+function toSlots(hours){
+  const out = [];
+  for (let h = 1; h <= 24; h++) out.push(...(MAP[hours[h]] || [1,1]));
+  return out;
+}
+let RAW = null, OFFLINE = false, CHECKED = null, view = {tab:"today", day:null};
+
+async function fetchRegion(region){
+  const bust = Math.floor(Date.now()/60000);
+  const urls = [
+    `https://raw.githubusercontent.com/${MIRROR}/main/data/${region}.json?t=${bust}`,
+    `https://api.github.com/repos/${MIRROR}/contents/data/${region}.json`,
+    `https://cdn.jsdelivr.net/gh/${MIRROR}@main/data/${region}.json`
+  ];
+  for (const u of urls) {
+    try {
+      const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 9000);
+      const r = await fetch(u, {cache:"no-store", signal:ctl.signal}); clearTimeout(to);
+      if (!r.ok) continue;
+      let j = await r.json();
+      if (j && j.content && j.encoding === "base64") j = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(j.content.replace(/\n/g,"")), c => c.charCodeAt(0))));
+      if (j && j.fact && j.preset) { store.set("svitlo:raw:"+region, j); return {data:j, offline:false}; }
+    } catch(e) {}
+  }
+  const cached = store.get("svitlo:raw:"+region, null);
+  return {data:cached, offline:true};
+}
+
+function model(){
+  const q = "GPV" + S.queue, days = {};
+  const fact = (RAW.fact && RAW.fact.data) || {};
+  for (const ts of Object.keys(fact)) {
+    if (!fact[ts][q]) continue;
+    days[kyiv(new Date(+ts*1000)).date] = {slots: toSlots(fact[ts][q]), src:"fact"};
+  }
+  const preset = (RAW.preset && RAW.preset.data && RAW.preset.data[q]) || null;
+  const get = ds => days[ds] || (preset && preset[weekday(ds)] ? {slots: toSlots(preset[weekday(ds)]), src:"preset"} : null);
+  return {get, preset, days};
+}
+
+// remember schedule versions to highlight changes
+function trackChanges(ds, day){
+  if (!day || day.src !== "fact") return null;
+  const key = `svitlo:hist:${S.region}:${S.queue}:${ds}`, cur = day.slots.join("");
+  const h = store.get(key, null);
+  if (!h) { store.set(key, {cur, prev:null, at:null}); return null; }
+  if (h.cur !== cur) { const n = {cur, prev:h.cur, at:Date.now()}; store.set(key, n); return n; }
+  return h.prev ? h : null;
+}
+
+// ---------- render ----------
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function runs(slots, from = 0){
+  const out = []; let i = from;
+  while (i < slots.length) { let j = i; while (j < slots.length && slots[j] === slots[i]) j++; out.push({v:slots[i], a:i, b:j}); i = j; }
+  return out;
+}
+
+function render(){
+  document.querySelectorAll("[data-t]").forEach(el => el.textContent = L()[el.dataset.t]);
+  document.documentElement.lang = S.lang;
+  $("#where").textContent = `${REGIONS[S.region][S.lang]} · ${L().queue} ${S.queue}`;
+  if (!RAW) { $("#app").innerHTML = `<div class="card">${esc(L().noData)}</div>`; return; }
+
+  const now = kyiv(), M = model();
+  const today = now.date, tomorrow = addDays(today, 1);
+  const dToday = M.get(today), dTom = M.get(tomorrow), dAfter = M.get(addDays(today, 2));
+  const nowSlot = Math.floor((now.h*60 + now.m)/30), nowMin = now.h*60 + now.m + now.s/60;
+  let html = "";
+  if (OFFLINE) html += `<div class="note">📡 ${esc(L().offline)}</div>`;
+
+  // ---- status ----
+  if (dToday) {
+    const line = [...dToday.slots, ...(dTom ? dTom.slots : []), ...(dAfter ? dAfter.slots : [])];
+    const known = 48 + (dTom && dTom.src === "fact" ? 48 : 0);           // slots with an exact schedule
+    const cur = line[nowSlot];
+    let j = nowSlot; while (j < line.length && line[j] === cur) j++;
+    let st = nowSlot; while (st > 0 && line[st-1] === cur) st--;
+    const endMin = j*30, leftMin = endMin - nowMin, total = (j - st)*30;
+    const endTxt = j >= line.length ? "—" : (j >= 48 ? `${L().tomorrowAt} ${hhmm(j)}` : `${L().at} ${endLabel(j)}`).replace(/^(о|в) /, "");
+    const cls = cur === 1 ? "on" : cur === 0 ? "off" : "maybe";
+    const big = cur === 1 ? L().on : cur === 0 ? L().off : L().maybe;
+    const untilLine = j >= line.length ? "" :
+      cur === 0 ? `${L().turnOn} <b>${esc(j >= 48 ? hhmm(j) : endLabel(j))}</b>${j>=48?" ("+L().tomorrow.toLowerCase()+")":""} · ${L().in} ${dur(leftMin)}`
+                : `${L().until} <b>${esc(endTxt)}</b> · ${L().in} ${dur(leftMin)}`;
+    // next windows
+    let nextHtml = "";
+    if (cur !== 0) {
+      let k = j, nOff = null, nMaybe = null;
+      for (const r of runs(line, j)) {
+        if (r.v === 0 && !nOff) nOff = r;
+        if (r.v === 2 && !nMaybe) nMaybe = r;
+        if (nOff) break;
+      }
+      const fmtRun = r => {
+        const a = r.a >= 48 ? `${L().tomorrow.toLowerCase()} ${hhmm(r.a)}` : hhmm(r.a);
+        const b = r.b >= 96 && r.a < 96 ? "24:00" : (r.b > 48 && r.a < 48 ? hhmm(r.b) : endLabel(r.b - (r.a>=48?48:0)));
+        return `${a}–${b}`;
+      };
+      if (nOff && nOff.a < known) nextHtml += `<div><span>${esc(L().nextOff)}</span><b>${esc(fmtRun(nOff))}</b></div>`;
+      if (nMaybe && (!nOff || nMaybe.a < nOff.a) && cur !== 2) nextHtml += `<div><span>${esc(L().nextMaybe)}</span><b>${esc(fmtRun(nMaybe))}</b></div>`;
+      if (!nextHtml) nextHtml = `<div><span>${esc(L().noOff)}</span><b>✓</b></div>`;
+    }
+    const pct = total ? Math.min(100, Math.max(0, (nowMin - st*30)/total*100)) : 0;
+    html += `<div class="card statusCard ${cls}">
+      <div class="status ${cls}"><div class="bulb">${cur===1?"💡":cur===0?"🕯️":"⚠️"}</div>
+      <div><div class="big">${esc(big)}</div><div class="until">${untilLine}</div></div></div>
+      ${j < line.length ? `<div class="progress"><i style="width:${pct.toFixed(1)}%"></i></div>` : ""}
+      ${nextHtml ? `<div class="next">${nextHtml}</div>` : ""}</div>`;
+  }
+
+  // ---- day tabs ----
+  const sel = view.tab === "tomorrow" ? tomorrow : view.tab === "day" && view.day ? view.day : today;
+  const tabInfo = (ds, d) => d ? (d.src === "fact" ? dayTitle(ds) : L().forecast) : L().waiting;
+  html += `<div class="card"><div class="tabs">
+    <button class="tab ${view.tab==="today"?"active":""}" data-tab="today"><b>${esc(L().today)}</b><small>${esc(tabInfo(today, dToday))}</small></button>
+    <button class="tab ${view.tab==="tomorrow"?"active":""}" data-tab="tomorrow"><b>${esc(L().tomorrow)}</b><small>${esc(dTom && dTom.src==="fact" ? dayTitle(tomorrow) : (M.preset ? L().forecast : L().waiting))}</small></button>
+    <button class="tab ${view.tab==="week"?"active":""}" data-tab="week"><b>${esc(L().week)}</b><small>${esc(L().forecast)}</small></button>
+  </div>`;
+
+  if (view.tab === "week") {
+    html += renderWeek(M, today, now) + `</div>`;
+  } else {
+    const d = M.get(sel), isToday = sel === today;
+    if (!d) html += `<div class="muted">${esc(L().waiting)}</div>`;
+    else {
+      if (d.src === "preset") html += `<div class="note">${esc(isToday ? L().presetToday : L().presetTomorrow)}</div>`;
+      if (view.tab === "day" && sel !== today) html += `<div class="note info">${esc(L().mon[weekday(sel)-1])} · ${esc(L().forecast)}</div>`;
+      const chg = trackChanges(sel, d);
+      if (chg && chg.at && Date.now() - chg.at < 24*3600e3) {
+        const t = kyiv(new Date(chg.at));
+        html += `<div class="note info">✏️ ${esc(L().changed)} ${L().at} ${String(t.h).padStart(2,"0")}:${String(t.m).padStart(2,"0")}</div>`;
+      }
+      const c0 = d.slots.filter(v => v===0).length/2, c2 = d.slots.filter(v => v===2).length/2, c1 = d.slots.filter(v => v===1).length/2;
+      html += `<div class="totals"><span><i class="dot d-off"></i>${esc(L().noLight)} <b>${hoursStr(c0)}</b></span>
+        ${c2 ? `<span><i class="dot d-maybe"></i>${esc(L().maybeH)} <b>${hoursStr(c2)}</b></span>` : ""}
+        <span><i class="dot d-on"></i>${esc(L().withLight)} <b>${hoursStr(c1)}</b></span></div>`;
+      html += `<div class="bar" id="bar">` + d.slots.map((v, i) => {
+        const past = isToday && i < nowSlot, changed = chg && chg.prev && chg.at && Date.now()-chg.at < 24*3600e3 && chg.prev[i] !== String(v);
+        return `<div class="slot s${v}${past?" past":""}${changed?" chg":""}" data-i="${i}"></div>`;
+      }).join("") + (isToday ? `<div class="now" style="left:${(nowMin/1440*100).toFixed(2)}%"></div>` : "") + `</div>
+        <div class="hours"><span>00</span><span>03</span><span>06</span><span>09</span><span>12</span><span>15</span><span>18</span><span>21</span><span>24</span></div>
+        <div class="tip" id="tip">${esc(L().tapSlot)}</div>`;
+      const rs = runs(d.slots).filter(r => r.v !== 1);
+      if (rs.length) html += `<div class="chips">` + rs.map(r => {
+        const past = isToday && r.b <= nowSlot;
+        return `<span class="chip${past?" past":""}"><i class="dot ${r.v===0?"d-off":"d-maybe"}"></i>${hhmm(r.a)}–${endLabel(r.b)}<small>${dur((r.b-r.a)*30)}</small></span>`;
+      }).join("") + `</div>`;
+      else html += `<div class="chips"><span class="chip"><i class="dot d-on"></i>${esc(L().whole)} ✓</span></div>`;
+      html += legend(!!(chg && chg.prev));
+    }
+    html += `</div>`;
+  }
+
+  $("#app").innerHTML = html;
+  // footer
+  const upd = RAW.fact && RAW.fact.update || RAW.preset && RAW.preset.updateFact || "";
+  const c = CHECKED ? kyiv(CHECKED) : null;
+  $("#upd").textContent = `${L().operator}: ${upd}` + (c ? ` · ${L().checked} ${String(c.h).padStart(2,"0")}:${String(c.m).padStart(2,"0")}` : "");
+  bind();
+}
+
+function legend(withChg){
+  return `<div class="legend"><span><i class="dot d-on"></i>${esc(L().legOn)}</span><span><i class="dot d-off"></i>${esc(L().legOff)}</span>
+    <span><i class="dot d-maybe"></i>${esc(L().legMaybe)}</span><span>▮ ${esc(L().legNow)}</span>${withChg?`<span><span style="color:var(--accent)">•</span> ${esc(L().legChg)}</span>`:""}</div>`;
+}
+
+function renderWeek(M, today, now){
+  if (!M.preset) return `<div class="muted">${esc(L().waiting)}</div>`;
+  const wdToday = weekday(today), curHour = now.h;
+  let h = `<h2>${esc(L().weekTitle)} · ${esc(L().queue.toLowerCase())} ${S.queue}</h2><div class="muted" style="margin:-6px 0 12px;font-size:13.5px">${esc(L().weekNote)}</div><div class="week">`;
+  for (let wd = 1; wd <= 7; wd++) {
+    const s = toSlots(M.preset[wd] || {});
+    const offset = (wd - wdToday + 7) % 7, ds = addDays(today, offset);
+    h += `<div class="dn ${wd===wdToday?"today":""}">${esc(L().mon[wd-1])}</div><div class="wrow" data-day="${ds}">`;
+    for (let i = 0; i < 24; i++) h += `<div class="cell ${wd===wdToday&&i===curHour?"cur":""}"><i class="s${s[i*2]}"></i><i class="s${s[i*2+1]}"></i></div>`;
+    h += `</div>`;
+  }
+  h += `<div class="whours"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div></div>` + legend(false);
+  return h;
+}
+
+function bind(){
+  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { haptic(); view = {tab:b.dataset.tab, day:null}; render(); });
+  document.querySelectorAll("[data-day]").forEach(r => r.onclick = () => {
+    haptic(); const ds = r.dataset.day, today = kyiv().date;
+    view = ds === today ? {tab:"today"} : ds === addDays(today,1) ? {tab:"tomorrow"} : {tab:"day", day:ds}; render();
+    window.scrollTo({top:0, behavior:"smooth"});
+  });
+  const bar = $("#bar");
+  if (bar) bar.onclick = e => {
+    const r = bar.getBoundingClientRect(), i = Math.max(0, Math.min(47, Math.floor((e.clientX - r.left)/r.width*48)));
+    const v = +bar.children[i].className.match(/s(\d)/)[1];
+    $("#tip").innerHTML = `<b>${hhmm(i)}–${endLabel(i+1)}</b> · ${esc(v===1?L().legOn:v===0?L().legOff:L().legMaybe)}`;
+    haptic("soft");
+  };
+}
+
+// ---------- settings sheet ----------
+function openSheet(){
+  const qsList = RAW && RAW.preset && RAW.preset.sch_names ? Object.keys(RAW.preset.sch_names).map(k => k.replace("GPV","")) :
+    ["1.1","1.2","2.1","2.2","3.1","3.2","4.1","4.2","5.1","5.2","6.1","6.2"];
+  $("#regions").innerHTML = Object.keys(REGIONS).map(r => `<button class="pill ${r===S.region?"sel":""}" data-r="${r}">${esc(REGIONS[r][S.lang])}</button>`).join("");
+  $("#queues").innerHTML = qsList.map(q => `<button class="pill ${q===S.queue?"sel":""}" data-q="${q}">${q}</button>`).join("");
+  $("#langs").innerHTML = [["uk","Українська"],["ru","Русский"]].map(([k,n]) => `<button class="pill ${k===S.lang?"sel":""}" data-l="${k}">${n}</button>`).join("");
+  $("#sheet").classList.add("open");
+  $("#sheet").querySelectorAll("[data-r]").forEach(b => b.onclick = async () => { haptic(); S.region = b.dataset.r; save(); await reload(); openSheet(); });
+  $("#sheet").querySelectorAll("[data-q]").forEach(b => b.onclick = () => { haptic(); S.queue = b.dataset.q; save(); render(); openSheet(); });
+  $("#sheet").querySelectorAll("[data-l]").forEach(b => b.onclick = () => { haptic(); S.lang = b.dataset.l; save(); render(); openSheet(); });
+}
+function save(){
+  store.set("svitlo:settings", S);
+  try { tg && tg.CloudStorage && tg.CloudStorage.setItem("settings", JSON.stringify(S)); } catch(e){}
+}
+$("#settings").onclick = () => { haptic(); openSheet(); };
+$("#done").onclick = () => { $("#sheet").classList.remove("open"); };
+$("#sheet").onclick = e => { if (e.target.id === "sheet") $("#sheet").classList.remove("open"); };
+$("#refresh").onclick = async () => { haptic("medium"); $("#refresh").style.transform = "rotate(360deg)"; $("#refresh").style.transition = "transform .6s";
+  await reload(); setTimeout(() => { $("#refresh").style.transition = ""; $("#refresh").style.transform = ""; }, 650); };
+$("#share").onclick = async () => {
+  haptic(); if (!RAW) return;
+  const M = model(), today = kyiv().date, lines = [`💡 ${L().shareHead} · ${REGIONS[S.region][S.lang]} · ${L().queue} ${S.queue}`];
+  for (const [ds, name] of [[today, L().today], [addDays(today,1), L().tomorrow]]) {
+    const d = M.get(ds); if (!d) continue;
+    const rs = runs(d.slots).filter(r => r.v !== 1);
+    lines.push(`\n${name}${d.src==="preset" ? " ("+L().forecast+")" : ""}:`);
+    lines.push(rs.length ? rs.map(r => `${r.v===0?"🔴":"🟡"} ${hhmm(r.a)}–${endLabel(r.b)}`).join("\n") : `🟢 ${L().noOff}`);
+  }
+  const text = lines.join("\n");
+  try { if (navigator.share && !tg) { await navigator.share({text}); return; } } catch(e){}
+  try { await navigator.clipboard.writeText(text); } catch(e){}
+  if (tg && tg.showAlert) tg.showAlert(L().copied); else alert(L().copied);
+};
+
+async function reload(){
+  const r = await fetchRegion(S.region);
+  RAW = r.data; OFFLINE = r.offline; if (!r.offline) CHECKED = new Date();
+  render();
+}
+
+(async function init(){
+  // pick up settings saved in Telegram cloud (sync between devices)
+  if (tg && tg.CloudStorage && !qs.get("q") && !qs.get("r")) {
+    await new Promise(res => { try { tg.CloudStorage.getItem("settings", (e, v) => { try { if (!e && v) Object.assign(S, JSON.parse(v)); } catch(x){} res(); }); } catch(e){ res(); } setTimeout(res, 800); });
+  }
+  const cached = store.get("svitlo:raw:"+S.region, null);
+  if (cached) { RAW = cached; render(); }
+  await reload();
+  setInterval(render, 30e3);           // live countdown
+  setInterval(reload, 5*60e3);         // fresh data
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) reload(); });
+})();
+</script>
+</body>
+</html>

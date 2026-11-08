@@ -1,0 +1,64 @@
+# Home Assistant: Telegram-бот відповідає на команди /svitlo /grafik /dom.
+# Потрібно: інтеграція telegram_bot (polling), сенсор зі слотами графіка
+# (рядок 96 символів по 30 хв на сьогодні+завтра: 1 = світло, 0 = немає, p = можливе),
+# input_boolean "мережа є" і сенсори інвертора. Замініть entity_id та chat_id на свої.
+alias: "🤖 Telegram-бот: команди /svitlo /grafik /dom"
+mode: queued
+max: 10
+triggers:
+  - trigger: event
+    event_type: telegram_command
+    id: cmd
+  - trigger: event
+    event_type: telegram_callback       # кнопки під повідомленням
+    id: cb
+conditions:
+  - "{{ (trigger.event.data.command if trigger.id == 'cmd' else trigger.event.data.data) | string
+       | regex_replace('@.*$', '') in ['/start', '/svitlo', '/grafik', '/dom', '/help'] }}"
+actions:
+  - variables:
+      app_url: "https://eudumitru.github.io/svitlo-bot/?q=2.2"
+      cmd: "{{ (trigger.event.data.command if trigger.id == 'cmd' else trigger.event.data.data) | string | regex_replace('@.*$', '') }}"
+      # chat_id -> notify-сутність бота (Налаштування → Пристрої → Telegram bot)
+      target: "{{ {'111111111': 'notify.me', '222222222': 'notify.wife'}.get(trigger.event.data.chat_id | string, '') }}"
+      kb: >-
+        {{ [[['🔄 Зараз', '/svitlo'], ['📅 Графік', '/grafik'], ['🏠 Дім', '/dom']],
+            [['📱 Відкрити графік', app_url]]] }}
+      text: >-
+        {%- set s = states('sensor.slots_30min') -%}
+        {%- set i = now().hour * 2 + (1 if now().minute >= 30 else 0) -%}
+        {%- set c = s[i] if s | length > i else '?' -%}
+        {%- set ns = namespace(e=none) -%}
+        {%- for j in range(i + 1, s | length) -%}{%- if ns.e is none and s[j] != c -%}{%- set ns.e = j -%}{%- endif -%}{%- endfor -%}
+        {%- set grid = is_state('input_boolean.grid_on', 'on') -%}
+        {%- if cmd == '/dom' -%}
+        🏠 Мережа: {{ '🟢 є' if grid else '🔴 немає' }} · 🔋 {{ states('sensor.battery_soc') }}%
+        {%- else -%}
+        {{ '🟢 Світло є' if c == '1' else '🔴 Світла немає' if c == '0' else '🟠 Можливе відключення' }}
+        {%- if ns.e is not none %} до {{ (today_at('00:00') + timedelta(minutes=30 * ns.e)).strftime('%H:%M') }}{% endif %}
+        {%- endif -%}
+  - condition: template
+    value_template: "{{ target != '' }}"
+  - if:
+      - condition: trigger
+        id: cb
+    then:   # натиснули кнопку — оновлюємо те саме повідомлення
+      - action: telegram_bot.answer_callback_query
+        data:
+          callback_query_id: "{{ trigger.event.data.id }}"
+          message: "Оновлено"
+          show_alert: false
+      - action: telegram_bot.edit_message
+        data:
+          entity_id: "{{ target }}"
+          message_id: "{{ trigger.event.data.message.message_id }}"
+          message: "{{ text }}"
+          parse_mode: html
+          inline_keyboard: "{{ kb }}"
+    else:
+      - action: telegram_bot.send_message
+        data:
+          entity_id: "{{ target }}"
+          message: "{{ text }}"
+          parse_mode: html
+          inline_keyboard: "{{ kb }}"
