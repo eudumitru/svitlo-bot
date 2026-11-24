@@ -371,12 +371,9 @@ function render(){
     if (real !== null) {
       const t = HOME.since ? kyiv(HOME.since) : null, sameDay = t && t.date === today;
       const sinceTxt = t ? ` · ${L().since} ${sameDay ? "" : t.date.slice(8,10)+"."+t.date.slice(5,7)+" "}${String(t.h).padStart(2,"0")}:${String(t.m).padStart(2,"0")}` : "";
-      homeLine = `🏠 ${esc(L().home)}: <b>${esc(real ? L().homeOn : L().homeOff)}</b>${sinceTxt}`;
-      if (real === 1 && HOME.v) {
-        homeLine += `<br>⚡ ${esc(L().volt)} <b>${HOME.v} V</b>`;
-        if (HOME.lim !== null) homeLine += ` · ${esc(HOME.auto ? L().softPick : L().manualLim)} <b>${HOME.lim} A</b> (≈${(HOME.lim*0.052).toFixed(1).replace(".", S.lang === "en" ? "." : ",")} ${esc(L().kw)})`;
-        if (HOME.ia > 1) homeLine += ` · ${esc(L().charging)} ${HOME.ia} A`;
-      }
+      // коротко, в одну строку: 🏠 Дома: свет есть · 228 V · ⚡ 37/60 A · с 13:07
+      const pwr = real === 1 && HOME.v ? ` · <b>${HOME.v} V</b>` + (HOME.lim !== null ? ` · ⚡ ${HOME.ia > 1 ? HOME.ia + "/" : ""}${HOME.lim} A${HOME.auto ? "" : " ✋"}` : "") : "";
+      homeLine = pwr ? `🏠 ${esc(L().home)}: 🟢 ${pwr.slice(3)}${sinceTxt}` : `🏠 ${esc(L().home)}: <b>${esc(real ? L().homeOn : L().homeOff)}</b>${sinceTxt}`;
       if (real !== cur) homeLine += `<br>📅 ${esc(L().bySched)}: <b>${esc((cur === 1 ? L().on : cur === 0 ? L().off : L().maybe).toLowerCase())}</b>`;
     }
     const untilLine = j >= line.length ? "" :
