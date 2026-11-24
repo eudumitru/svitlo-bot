@@ -295,7 +295,7 @@ let HOME = (() => {
   const g = qs.get("grid"), ts = +qs.get("ts") || 0, gs = +qs.get("gs") || 0;
   if (g !== "0" && g !== "1" || !ts) return null;
   const num = k => qs.get(k) !== null && qs.get(k) !== "" && isFinite(+qs.get(k)) ? +qs.get(k) : null;
-  return {on: g === "1", since: gs ? new Date(gs*1000) : null, ts, v: num("v"), lim: num("lim"), ia: num("ia"), auto: qs.get("auto") !== "0", lv: num("lv"), lp: num("lp"), bi: num("bi"), soc: num("soc")};
+  return {on: g === "1", since: gs ? new Date(gs*1000) : null, ts, v: num("v"), lim: num("lim"), ia: num("ia"), auto: qs.get("auto") !== "0", lv: num("lv"), lp: num("lp"), bi: num("bi"), bp: num("bp"), soc: num("soc")};
 })();
 const BAT_AH = +qs.get("cap") || 314, BAT_SD = +qs.get("sd") || 10;   // батарея дома: А·ч и % отключения
 // живые данные дома: HA пишет их в файл при каждом изменении и каждые 30 с; читаем при открытии и каждые 2 с
@@ -305,10 +305,10 @@ let liveKey = "", LIVE_FLASH = [];
 window.__svitloLive = d => {
   if (!d || !d.ts || Date.now()/1000 - d.ts > 180 || (HOME && HOME.live && HOME.ts > d.ts)) return;   // живые данные главнее снимка из ссылки
   const n = x => typeof x === "number" ? x : null;
-  HOME = {on: d.grid === 1, since: d.gs ? new Date(d.gs*1000) : null, ts: d.ts, v: n(d.v), lim: n(d.lim), ia: n(d.ia), auto: d.auto !== 0, lv: n(d.lv), lp: n(d.lp), bi: n(d.bi), soc: n(d.soc), live: true};
-  const k = [d.grid, d.gs, d.v, d.lim, d.ia, d.auto, d.lv, d.lp, d.bi, d.soc].join();
+  HOME = {on: d.grid === 1, since: d.gs ? new Date(d.gs*1000) : null, ts: d.ts, v: n(d.v), lim: n(d.lim), ia: n(d.ia), auto: d.auto !== 0, lv: n(d.lv), lp: n(d.lp), bi: n(d.bi), bp: n(d.bp), soc: n(d.soc), live: true};
+  const k = [d.grid, d.gs, d.v, d.lim, d.ia, d.auto, d.lv, d.lp, d.bi, d.soc, d.bp].join();
   if (k !== liveKey) {
-    LIVE_FLASH = liveKey ? ["v","lim","ia","lv","lp","bi","soc"].filter(x => (liveKey.split(",")[{v:2,lim:3,ia:4,lv:6,lp:7,bi:8,soc:9}[x]]) != String(d[x])) : [];
+    LIVE_FLASH = liveKey ? ["v","lim","ia","lv","lp","bi","soc","bp"].filter(x => (liveKey.split(",")[{v:2,lim:3,ia:4,lv:6,lp:7,bi:8,soc:9,bp:10}[x]]) != String(d[x])) : [];
     liveKey = k; try { if (RAW) render(); } catch(e) {} LIVE_FLASH = [];
   }
 };
@@ -330,7 +330,7 @@ function pollLive(){
       window.__svitloLive({grid: g === "on" ? 1 : 0, gs: Math.round(st["input_datetime.set_vremia_poslednei_smeny"]?.attributes?.timestamp || 0),
         v: r(n("sensor.deye8kw_grid_voltage_l1"), 10), lim: n("number.192_168_0_237_battery_grid_charging_current"), ia: bi === null ? null : r(Math.max(0, -bi), 100),
         auto: s("automation.deye_plavnaia_zariadka_ot_slaboi_seti") === "on" ? 1 : 0, lv: r(n("sensor.deye8kw_load_voltage"), 10), lp: n("sensor.deye8kw_load_l1_power"),
-        bi: r(bi, 100), soc: n("sensor.deye8kw_battery_soc"), ts: Math.floor(Date.now()/1000)});
+        bi: r(bi, 100), bp: n("sensor.deye8kw_battery_power"), soc: n("sensor.deye8kw_battery_soc"), ts: Math.floor(Date.now()/1000)});
       return;
     }
   }
@@ -439,7 +439,10 @@ function render(){
       const dec = S.lang === "en" ? "." : ",";
       const fA = x => (x < 10 ? x.toFixed(2) : x.toFixed(1)).replace(".", dec);   // точный ток: 0,56 A / 37,2 A
       const fV = x => (Number.isInteger(x) ? String(x) : x.toFixed(1)).replace(".", dec);
-      const pwr = real === 1 && HOME.v ? ` · <b class="lv${fl("v")}">${fV(HOME.v)}&nbsp;V</b>` + (HOME.lim !== null ? ` · ⚡&nbsp;${esc(HOME.auto ? L().softPick : L().manualLim)} <b class="lv${fl("lim")}">${HOME.lim}&nbsp;A</b> ` + (HOME.ia !== null ? `(${esc(L().nowA)}&nbsp;<span class="lv${fl("ia")}">${fA(HOME.ia)}&nbsp;A</span>)` : `(≈${kw}&nbsp;${esc(L().kw)})`) : "") +
+      const pwr = real === 1 && HOME.v ? ` · <b class="lv${fl("v")}">${fV(HOME.v)}&nbsp;V</b>` + (HOME.lim !== null ? ` · ⚡&nbsp;${esc(HOME.auto ? L().softPick : L().manualLim)} <b class="lv${fl("lim")}">${HOME.lim}&nbsp;A</b> ` + (() => {   // в скобках — сколько кВт реально идёт в батарею (battery_power < 0 = заряд), иначе ток × 53,5 V
+          const w = HOME.bp !== null ? Math.max(0, -HOME.bp) : HOME.ia !== null ? HOME.ia*53.5 : null;
+          return w === null ? `(≈${kw}&nbsp;${esc(L().kw)})` : `(<span class="lv${fl("bp")}${fl("ia")}">${(w/1000).toFixed(2).replace(".", dec)}&nbsp;${esc(L().kw)}</span>)`;
+        })() : "") +
         // после скобок: заряд батареи и сколько ещё до 100 % при нынешнем токе (ёмкость 314 А·ч)
         (HOME.soc !== null ? ` · 🔋&nbsp;<span class="lv${fl("soc")}">${HOME.soc}%</span>` +
           (HOME.soc < 100 && HOME.ia !== null && HOME.ia > 0.3 ? ` · ⏳&nbsp;${esc(L().full)} <b>≈${esc(batLeft((100 - HOME.soc)/100*BAT_AH/HOME.ia*60))}</b>` : "") : "") : "";
