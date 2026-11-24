@@ -291,7 +291,7 @@ const LIVE_URL = "https://petsacaldar.pp.ua/local/svitlo/live-k7q2.js";
 const wantLive = !!HOME || qs.get("live") === "1";
 let liveKey = "", LIVE_FLASH = [];
 window.__svitloLive = d => {
-  if (!d || !d.ts || (HOME && HOME.ts > d.ts)) return;
+  if (!d || !d.ts || Date.now()/1000 - d.ts > 180 || (HOME && HOME.live && HOME.ts > d.ts)) return;   // живые данные главнее снимка из ссылки
   const n = x => typeof x === "number" ? x : null;
   HOME = {on: d.grid === 1, since: d.gs ? new Date(d.gs*1000) : null, ts: d.ts, v: n(d.v), lim: n(d.lim), ia: n(d.ia), auto: d.auto !== 0, live: true};
   const k = [d.grid, d.gs, d.v, d.lim, d.ia, d.auto].join();
