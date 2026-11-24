@@ -178,7 +178,7 @@ const T = {
     disclaimer:"Неофіційний застосунок, не пов'язаний з енергокомпаніями", tomorrowAt:"завтра о", at:"о",
     mon:["Пн","Вт","Ср","Чт","Пт","Сб","Нд"], months:["січ.","лют.","бер.","квіт.","трав.","черв.","лип.","серп.","вер.","жовт.","лист.","груд."],
     copied:"Графік скопійовано", shareHead:"Графік відключень", noData:"Не вдалося завантажити дані. Спробуйте ще раз.",
-    tapSlot:"Торкніться або проведіть пальцем по шкалі, щоб побачити час",home:"Вдома",homeOn:"світло є",homeOff:"світла немає",since:"з",bySched:"За графіком",copyFail:"Не вдалося скопіювати — виділіть текст і скопіюйте вручну",copyTitle:"Графік", left:"залишилось", whole:"весь день"},
+    tapSlot:"Торкніться або проведіть пальцем по шкалі, щоб побачити час",home:"Вдома",homeOn:"світло є",homeOff:"світла немає",since:"з",bySched:"За графіком",copyFail:"Не вдалося скопіювати — виділіть текст і скопіюйте вручну",copyTitle:"Графік",volt:"Напруга мережі",softPick:"плавна зарядка обрала",manualLim:"ліміт зарядки (вручну)",charging:"заряджається",kw:"кВт", left:"залишилось", whole:"весь день"},
   ru:{title:"График отключений",queue:"Очередь",region:"Регион",lang:"Язык",done:"Готово",
     on:"Свет есть",off:"Света нет",maybe:"Возможно отключение",
     until:"до",in:"через",turnOn:"Включат в",nextOff:"Следующее отключение",nextMaybe:"Возможное отключение",
@@ -192,7 +192,7 @@ const T = {
     disclaimer:"Неофициальное приложение, не связано с энергокомпаниями", tomorrowAt:"завтра в", at:"в",
     mon:["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], months:["янв.","фев.","мар.","апр.","мая","июн.","июл.","авг.","сен.","окт.","ноя.","дек."],
     copied:"График скопирован", shareHead:"График отключений", noData:"Не удалось загрузить данные. Попробуйте ещё раз.",
-    tapSlot:"Коснитесь или проведите пальцем по шкале, чтобы увидеть время",home:"Дома",homeOn:"свет есть",homeOff:"света нет",since:"с",bySched:"По графику",copyFail:"Не удалось скопировать — выделите текст и скопируйте вручную",copyTitle:"График", left:"осталось", whole:"весь день"},
+    tapSlot:"Коснитесь или проведите пальцем по шкале, чтобы увидеть время",home:"Дома",homeOn:"свет есть",homeOff:"света нет",since:"с",bySched:"По графику",copyFail:"Не удалось скопировать — выделите текст и скопируйте вручную",copyTitle:"График",volt:"Напряжение сети",softPick:"плавная зарядка выбрала",manualLim:"лимит зарядки (вручную)",charging:"заряжается",kw:"кВт", left:"осталось", whole:"весь день"},
   en:{title:"Outage schedule",queue:"Queue",region:"Region",lang:"Language",done:"Done",
     on:"Power is on",off:"No power",maybe:"Possible outage",
     until:"until",in:"in",turnOn:"Back on at",nextOff:"Next outage",nextMaybe:"Possible outage",
@@ -206,7 +206,7 @@ const T = {
     disclaimer:"Unofficial app, not affiliated with energy companies", tomorrowAt:"tomorrow at", at:"at",
     mon:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"], months:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
     copied:"Schedule copied", shareHead:"Outage schedule", noData:"Couldn't load data. Please try again.",
-    tapSlot:"Tap or slide your finger along the bar to see the time",home:"Home",homeOn:"power on",homeOff:"no power",since:"since",bySched:"By schedule",copyFail:"Couldn't copy \u2014 select the text and copy it manually",copyTitle:"Schedule",
+    tapSlot:"Tap or slide your finger along the bar to see the time",home:"Home",homeOn:"power on",homeOff:"no power",since:"since",bySched:"By schedule",copyFail:"Couldn't copy \u2014 select the text and copy it manually",copyTitle:"Schedule",volt:"Grid voltage",softPick:"soft charging picked",manualLim:"charge limit (manual)",charging:"charging",kw:"kW",
     left:"left", whole:"all day"}
 };
 
@@ -280,7 +280,8 @@ function toSlots(hours){
 const HOME = (() => {
   const g = qs.get("grid"), ts = +qs.get("ts") || 0, gs = +qs.get("gs") || 0;
   if (g !== "0" && g !== "1" || !ts) return null;
-  return {on: g === "1", since: gs ? new Date(gs*1000) : null, ts};
+  const num = k => qs.get(k) !== null && qs.get(k) !== "" && isFinite(+qs.get(k)) ? +qs.get(k) : null;
+  return {on: g === "1", since: gs ? new Date(gs*1000) : null, ts, v: num("v"), lim: num("lim"), ia: num("ia"), auto: qs.get("auto") !== "0"};
 })();
 const homeFresh = () => HOME && Date.now()/1000 - HOME.ts < 20*60;
 let RAW = null, OFFLINE = false, CHECKED = null, view = {tab:"today", day:null}, tipSlot = null;
@@ -371,6 +372,11 @@ function render(){
       const t = HOME.since ? kyiv(HOME.since) : null, sameDay = t && t.date === today;
       const sinceTxt = t ? ` · ${L().since} ${sameDay ? "" : t.date.slice(8,10)+"."+t.date.slice(5,7)+" "}${String(t.h).padStart(2,"0")}:${String(t.m).padStart(2,"0")}` : "";
       homeLine = `🏠 ${esc(L().home)}: <b>${esc(real ? L().homeOn : L().homeOff)}</b>${sinceTxt}`;
+      if (real === 1 && HOME.v) {
+        homeLine += `<br>⚡ ${esc(L().volt)} <b>${HOME.v} V</b>`;
+        if (HOME.lim !== null) homeLine += ` · ${esc(HOME.auto ? L().softPick : L().manualLim)} <b>${HOME.lim} A</b> (≈${(HOME.lim*0.052).toFixed(1).replace(".", S.lang === "en" ? "." : ",")} ${esc(L().kw)})`;
+        if (HOME.ia > 1) homeLine += ` · ${esc(L().charging)} ${HOME.ia} A`;
+      }
       if (real !== cur) homeLine += `<br>📅 ${esc(L().bySched)}: <b>${esc((cur === 1 ? L().on : cur === 0 ? L().off : L().maybe).toLowerCase())}</b>`;
     }
     const untilLine = j >= line.length ? "" :
