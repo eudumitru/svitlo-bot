@@ -20,6 +20,11 @@
   --text:#14202c; --muted:#617384; --accent:#2481cc;
   --on:#2fb35d; --on-dim:#a5dcb8; --off:#e5484d; --off-dim:#f1b2b4; --maybe:#e09a1f;
 }
+:root.nopower{ /* нет света — чёрный фон как на Deye LCD */
+  --bg:#000; --card:#0d0d0d; --card2:#161616; --line:#262626;
+  --text:#eeeeee; --muted:#8c8c8c; --accent:#3d9cf5;
+  --on:#3ac569; --on-dim:#2a6b46; --off:#ef5b57; --off-dim:#7a3b3f; --maybe:#e9a93a;
+}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--text);
   font:15px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
@@ -217,7 +222,11 @@ function applyTheme(){
   if (tg && tg.colorScheme) dark = tg.colorScheme === "dark";
   if (qs.get("theme")) dark = qs.get("theme") !== "light";
   document.documentElement.dataset.theme = dark ? "dark" : "light";
+  syncTgColors();
+}
+function syncTgColors(){
   const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = bg;
   if (tg) { try { tg.setHeaderColor(bg); tg.setBackgroundColor(bg); tg.setBottomBarColor && tg.setBottomBarColor(bg); } catch(e){} }
 }
 if (tg) { tg.ready(); tg.expand(); tg.onEvent("themeChanged", applyTheme); }
@@ -325,6 +334,8 @@ function render(){
     const endMin = j*30, leftMin = endMin - nowMin, total = (j - st)*30;
     const endTxt = j >= line.length ? "—" : (j >= 48 ? `${L().tomorrowAt} ${hhmm(j)}` : `${L().at} ${endLabel(j)}`).replace(/^(о|в) /, "");
     const cls = cur === 1 ? "on" : cur === 0 ? "off" : "maybe";
+    const np = cur === 0, root = document.documentElement;
+    if (root.classList.contains("nopower") !== np) { root.classList.toggle("nopower", np); syncTgColors(); }
     const big = cur === 1 ? L().on : cur === 0 ? L().off : L().maybe;
     const untilLine = j >= line.length ? "" :
       cur === 0 ? `${L().turnOn} <b>${esc(j >= 48 ? hhmm(j) : endLabel(j))}</b>${j>=48?" ("+L().tomorrow.toLowerCase()+")":""} · ${L().in} ${dur(leftMin)}`
