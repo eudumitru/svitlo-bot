@@ -298,7 +298,7 @@ window.__svitloLive = d => {
   const k = [d.grid, d.gs, d.v, d.lim, d.ia, d.auto, d.lv, d.lp, d.bi, d.soc].join();
   if (k !== liveKey) {
     LIVE_FLASH = liveKey ? ["v","lim","ia","lv","lp","bi","soc"].filter(x => (liveKey.split(",")[{v:2,lim:3,ia:4,lv:6,lp:7,bi:8,soc:9}[x]]) != String(d[x])) : [];
-    liveKey = k; if (RAW) render(); LIVE_FLASH = [];
+    liveKey = k; try { if (RAW) render(); } catch(e) {} LIVE_FLASH = [];
   }
 };
 // внутри Home Assistant (окно «График отключений» в LCD открыто как srcdoc того же адреса) — берём данные прямо из HA,
