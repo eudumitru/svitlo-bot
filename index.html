@@ -277,12 +277,31 @@ function toSlots(hours){
   return out;
 }
 // реальная сеть из Home Assistant: кнопка в боте передаёт ?grid=0|1&gs=<с какого момента>&ts=<когда отправлено>
-const HOME = (() => {
+let HOME = (() => {
   const g = qs.get("grid"), ts = +qs.get("ts") || 0, gs = +qs.get("gs") || 0;
   if (g !== "0" && g !== "1" || !ts) return null;
   const num = k => qs.get(k) !== null && qs.get(k) !== "" && isFinite(+qs.get(k)) ? +qs.get(k) : null;
   return {on: g === "1", since: gs ? new Date(gs*1000) : null, ts, v: num("v"), lim: num("lim"), ia: num("ia"), auto: qs.get("auto") !== "0"};
 })();
+// живые данные дома: HA пишет их в файл при каждом изменении и каждые 30 с; читаем при открытии и каждые 10 с
+const LIVE_URL = "https://petsacaldar.pp.ua/local/svitlo/live-k7q2.js";
+const wantLive = !!HOME || qs.get("live") === "1";
+let liveKey = "";
+window.__svitloLive = d => {
+  if (!d || !d.ts || (HOME && HOME.ts > d.ts)) return;
+  const n = x => typeof x === "number" ? x : null;
+  HOME = {on: d.grid === 1, since: d.gs ? new Date(d.gs*1000) : null, ts: d.ts, v: n(d.v), lim: n(d.lim), ia: n(d.ia), auto: d.auto !== 0, live: true};
+  const k = [d.grid, d.gs, d.v, d.lim, d.ia, d.auto].join();
+  if (k !== liveKey) { liveKey = k; if (RAW) render(); }
+};
+function pollLive(){
+  if (!wantLive || document.hidden) return;
+  const s = document.createElement("script");
+  s.src = LIVE_URL + "?t=" + Date.now();
+  s.onload = s.onerror = () => s.remove();
+  document.head.appendChild(s);
+}
+pollLive();
 const homeFresh = () => HOME && Date.now()/1000 - HOME.ts < 20*60;
 let RAW = null, OFFLINE = false, CHECKED = null, view = {tab:"today", day:null}, tipSlot = null;
 
@@ -577,7 +596,8 @@ async function reload(){
   await reload();
   setInterval(render, 30e3);           // live countdown
   setInterval(reload, 5*60e3);         // fresh data
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) reload(); });
+  setInterval(pollLive, 10e3);         // живые V / A из дома
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { pollLive(); reload(); } });
 })();
 </script>
 </body>
