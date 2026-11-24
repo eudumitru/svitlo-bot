@@ -399,7 +399,10 @@ function render(){
       // всё в одну строку: 🏠 Дома: свет есть · с 13:07 · 241 V · ⚡ зарядка выбрала 60 A (≈3,1 кВт) · идёт 37 A
       const kw = HOME.lim !== null ? (HOME.lim*0.052).toFixed(1).replace(".", S.lang === "en" ? "." : ",") : "";
       const fl = k => LIVE_FLASH.includes(k) ? " lvf" : "";
-      const pwr = real === 1 && HOME.v ? ` · <b class="lv${fl("v")}">${HOME.v}&nbsp;V</b>` + (HOME.lim !== null ? ` · ⚡&nbsp;${esc(HOME.auto ? L().softPick : L().manualLim)} <b class="lv${fl("lim")}">${HOME.lim}&nbsp;A</b> ` + (HOME.ia !== null ? `(${esc(L().nowA)}&nbsp;<span class="lv${fl("ia")}">${HOME.ia}&nbsp;A</span>)` : `(≈${kw}&nbsp;${esc(L().kw)})`) : "") : "";
+      const dec = S.lang === "en" ? "." : ",";
+      const fA = x => (x < 10 ? x.toFixed(2) : x.toFixed(1)).replace(".", dec);   // точный ток: 0,56 A / 37,2 A
+      const fV = x => (Number.isInteger(x) ? String(x) : x.toFixed(1)).replace(".", dec);
+      const pwr = real === 1 && HOME.v ? ` · <b class="lv${fl("v")}">${fV(HOME.v)}&nbsp;V</b>` + (HOME.lim !== null ? ` · ⚡&nbsp;${esc(HOME.auto ? L().softPick : L().manualLim)} <b class="lv${fl("lim")}">${HOME.lim}&nbsp;A</b> ` + (HOME.ia !== null ? `(${esc(L().nowA)}&nbsp;<span class="lv${fl("ia")}">${fA(HOME.ia)}&nbsp;A</span>)` : `(≈${kw}&nbsp;${esc(L().kw)})`) : "") : "";
       homeLine = `🏠 ${esc(L().home)}: <b>${esc(real ? L().homeOn : L().homeOff)}</b>${sinceTxt}${pwr}`;
       if (real !== cur) homeLine += `<br>📅 ${esc(L().bySched)}: <b>${esc((cur === 1 ? L().on : cur === 0 ? L().off : L().maybe).toLowerCase())}</b>`;
     }
