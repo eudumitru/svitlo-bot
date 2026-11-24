@@ -118,6 +118,9 @@ footer{color:var(--muted);font-size:12.5px;text-align:center;line-height:1.55;ma
 footer a{color:var(--muted)}
 .skeleton{height:120px;border-radius:var(--radius);background:linear-gradient(90deg,var(--card),var(--card2),var(--card));background-size:200% 100%;animation:sh 1.2s infinite;margin-bottom:12px}
 @keyframes sh{to{background-position:-200% 0}}
+.lv{transition:none}.lvf{animation:lvf .9s ease-out}
+@keyframes lvf{0%{color:#16a34a;text-shadow:0 0 8px rgba(22,163,74,.55)}100%{}}
+:root.nopower .lvf{animation:none}
 body.embed header .iconbtn#share,body.embed footer .disc{display:none}
 @media (max-width:380px){.status .big{font-size:23px}.tab{padding:8px}}
 </style>
@@ -283,16 +286,19 @@ let HOME = (() => {
   const num = k => qs.get(k) !== null && qs.get(k) !== "" && isFinite(+qs.get(k)) ? +qs.get(k) : null;
   return {on: g === "1", since: gs ? new Date(gs*1000) : null, ts, v: num("v"), lim: num("lim"), ia: num("ia"), auto: qs.get("auto") !== "0"};
 })();
-// живые данные дома: HA пишет их в файл при каждом изменении и каждые 30 с; читаем при открытии и каждые 10 с
+// живые данные дома: HA пишет их в файл при каждом изменении и каждые 30 с; читаем при открытии и каждые 2 с
 const LIVE_URL = "https://petsacaldar.pp.ua/local/svitlo/live-k7q2.js";
 const wantLive = !!HOME || qs.get("live") === "1";
-let liveKey = "";
+let liveKey = "", LIVE_FLASH = [];
 window.__svitloLive = d => {
   if (!d || !d.ts || (HOME && HOME.ts > d.ts)) return;
   const n = x => typeof x === "number" ? x : null;
   HOME = {on: d.grid === 1, since: d.gs ? new Date(d.gs*1000) : null, ts: d.ts, v: n(d.v), lim: n(d.lim), ia: n(d.ia), auto: d.auto !== 0, live: true};
   const k = [d.grid, d.gs, d.v, d.lim, d.ia, d.auto].join();
-  if (k !== liveKey) { liveKey = k; if (RAW) render(); }
+  if (k !== liveKey) {
+    LIVE_FLASH = liveKey ? ["v","lim","ia"].filter(x => (liveKey.split(",")[{v:2,lim:3,ia:4}[x]]) != String(d[x])) : [];
+    liveKey = k; if (RAW) render(); LIVE_FLASH = [];
+  }
 };
 function pollLive(){
   if (!wantLive || document.hidden) return;
@@ -392,7 +398,8 @@ function render(){
       const sinceTxt = t ? ` · ${L().since} ${sameDay ? "" : t.date.slice(8,10)+"."+t.date.slice(5,7)+" "}${String(t.h).padStart(2,"0")}:${String(t.m).padStart(2,"0")}` : "";
       // всё в одну строку: 🏠 Дома: свет есть · с 13:07 · 241 V · ⚡ зарядка выбрала 60 A (≈3,1 кВт) · идёт 37 A
       const kw = HOME.lim !== null ? (HOME.lim*0.052).toFixed(1).replace(".", S.lang === "en" ? "." : ",") : "";
-      const pwr = real === 1 && HOME.v ? ` · <b>${HOME.v}&nbsp;V</b>` + (HOME.lim !== null ? ` · ⚡&nbsp;${esc(HOME.auto ? L().softPick : L().manualLim)} <b>${HOME.lim}&nbsp;A</b> ` + (HOME.ia !== null ? `(${esc(L().nowA)}&nbsp;${HOME.ia}&nbsp;A)` : `(≈${kw}&nbsp;${esc(L().kw)})`) : "") : "";
+      const fl = k => LIVE_FLASH.includes(k) ? " lvf" : "";
+      const pwr = real === 1 && HOME.v ? ` · <b class="lv${fl("v")}">${HOME.v}&nbsp;V</b>` + (HOME.lim !== null ? ` · ⚡&nbsp;${esc(HOME.auto ? L().softPick : L().manualLim)} <b class="lv${fl("lim")}">${HOME.lim}&nbsp;A</b> ` + (HOME.ia !== null ? `(${esc(L().nowA)}&nbsp;<span class="lv${fl("ia")}">${HOME.ia}&nbsp;A</span>)` : `(≈${kw}&nbsp;${esc(L().kw)})`) : "") : "";
       homeLine = `🏠 ${esc(L().home)}: <b>${esc(real ? L().homeOn : L().homeOff)}</b>${sinceTxt}${pwr}`;
       if (real !== cur) homeLine += `<br>📅 ${esc(L().bySched)}: <b>${esc((cur === 1 ? L().on : cur === 0 ? L().off : L().maybe).toLowerCase())}</b>`;
     }
@@ -596,7 +603,7 @@ async function reload(){
   await reload();
   setInterval(render, 30e3);           // live countdown
   setInterval(reload, 5*60e3);         // fresh data
-  setInterval(pollLive, 10e3);         // живые V / A из дома
+  setInterval(pollLive, 2e3);          // живые V / A из дома (инвертор шлёт раз в 5 с)
   document.addEventListener("visibilitychange", () => { if (!document.hidden) { pollLive(); reload(); } });
 })();
 </script>
