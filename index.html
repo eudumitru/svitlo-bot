@@ -178,7 +178,7 @@ const T = {
     disclaimer:"Неофіційний застосунок, не пов'язаний з енергокомпаніями", tomorrowAt:"завтра о", at:"о",
     mon:["Пн","Вт","Ср","Чт","Пт","Сб","Нд"], months:["січ.","лют.","бер.","квіт.","трав.","черв.","лип.","серп.","вер.","жовт.","лист.","груд."],
     copied:"Графік скопійовано", shareHead:"Графік відключень", noData:"Не вдалося завантажити дані. Спробуйте ще раз.",
-    tapSlot:"Торкніться або проведіть пальцем по шкалі, щоб побачити час",home:"Вдома",homeOn:"світло є",homeOff:"світла немає",since:"з",bySched:"За графіком",copyFail:"Не вдалося скопіювати — виділіть текст і скопіюйте вручну",copyTitle:"Графік",volt:"Напруга мережі",softPick:"плавна зарядка обрала",manualLim:"ліміт зарядки (вручну)",charging:"заряджається",kw:"кВт", left:"залишилось", whole:"весь день"},
+    tapSlot:"Торкніться або проведіть пальцем по шкалі, щоб побачити час",home:"Вдома",homeOn:"світло є",homeOff:"світла немає",since:"з",bySched:"За графіком",copyFail:"Не вдалося скопіювати — виділіть текст і скопіюйте вручну",copyTitle:"Графік",volt:"Напруга мережі",softPick:"зарядка обрала",manualLim:"зарядка вручну",charging:"заряджається",kw:"кВт", left:"залишилось", whole:"весь день"},
   ru:{title:"График отключений",queue:"Очередь",region:"Регион",lang:"Язык",done:"Готово",
     on:"Свет есть",off:"Света нет",maybe:"Возможно отключение",
     until:"до",in:"через",turnOn:"Включат в",nextOff:"Следующее отключение",nextMaybe:"Возможное отключение",
@@ -192,7 +192,7 @@ const T = {
     disclaimer:"Неофициальное приложение, не связано с энергокомпаниями", tomorrowAt:"завтра в", at:"в",
     mon:["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], months:["янв.","фев.","мар.","апр.","мая","июн.","июл.","авг.","сен.","окт.","ноя.","дек."],
     copied:"График скопирован", shareHead:"График отключений", noData:"Не удалось загрузить данные. Попробуйте ещё раз.",
-    tapSlot:"Коснитесь или проведите пальцем по шкале, чтобы увидеть время",home:"Дома",homeOn:"свет есть",homeOff:"света нет",since:"с",bySched:"По графику",copyFail:"Не удалось скопировать — выделите текст и скопируйте вручную",copyTitle:"График",volt:"Напряжение сети",softPick:"плавная зарядка выбрала",manualLim:"лимит зарядки (вручную)",charging:"заряжается",kw:"кВт", left:"осталось", whole:"весь день"},
+    tapSlot:"Коснитесь или проведите пальцем по шкале, чтобы увидеть время",home:"Дома",homeOn:"свет есть",homeOff:"света нет",since:"с",bySched:"По графику",copyFail:"Не удалось скопировать — выделите текст и скопируйте вручную",copyTitle:"График",volt:"Напряжение сети",softPick:"зарядка выбрала",manualLim:"зарядка вручную",charging:"заряжается",kw:"кВт", left:"осталось", whole:"весь день"},
   en:{title:"Outage schedule",queue:"Queue",region:"Region",lang:"Language",done:"Done",
     on:"Power is on",off:"No power",maybe:"Possible outage",
     until:"until",in:"in",turnOn:"Back on at",nextOff:"Next outage",nextMaybe:"Possible outage",
@@ -206,7 +206,7 @@ const T = {
     disclaimer:"Unofficial app, not affiliated with energy companies", tomorrowAt:"tomorrow at", at:"at",
     mon:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"], months:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
     copied:"Schedule copied", shareHead:"Outage schedule", noData:"Couldn't load data. Please try again.",
-    tapSlot:"Tap or slide your finger along the bar to see the time",home:"Home",homeOn:"power on",homeOff:"no power",since:"since",bySched:"By schedule",copyFail:"Couldn't copy \u2014 select the text and copy it manually",copyTitle:"Schedule",volt:"Grid voltage",softPick:"soft charging picked",manualLim:"charge limit (manual)",charging:"charging",kw:"kW",
+    tapSlot:"Tap or slide your finger along the bar to see the time",home:"Home",homeOn:"power on",homeOff:"no power",since:"since",bySched:"By schedule",copyFail:"Couldn't copy \u2014 select the text and copy it manually",copyTitle:"Schedule",volt:"Grid voltage",softPick:"charging picked",manualLim:"manual charging",charging:"charging",kw:"kW",
     left:"left", whole:"all day"}
 };
 
@@ -371,9 +371,10 @@ function render(){
     if (real !== null) {
       const t = HOME.since ? kyiv(HOME.since) : null, sameDay = t && t.date === today;
       const sinceTxt = t ? ` · ${L().since} ${sameDay ? "" : t.date.slice(8,10)+"."+t.date.slice(5,7)+" "}${String(t.h).padStart(2,"0")}:${String(t.m).padStart(2,"0")}` : "";
-      // коротко, в одну строку: 🏠 Дома: свет есть · 228 V · ⚡ 37/60 A · с 13:07
-      const pwr = real === 1 && HOME.v ? ` · <b>${HOME.v} V</b>` + (HOME.lim !== null ? ` · ⚡ ${HOME.ia > 1 ? HOME.ia + "/" : ""}${HOME.lim} A${HOME.auto ? "" : " ✋"}` : "") : "";
-      homeLine = pwr ? `🏠 ${esc(L().home)}: 🟢 ${pwr.slice(3)}${sinceTxt}` : `🏠 ${esc(L().home)}: <b>${esc(real ? L().homeOn : L().homeOff)}</b>${sinceTxt}`;
+      // всё в одну строку: 🏠 Дома: свет есть · с 13:07 · 241 V · ⚡ зарядка выбрала 60 A (≈3,1 кВт) · идёт 37 A
+      const kw = HOME.lim !== null ? (HOME.lim*0.052).toFixed(1).replace(".", S.lang === "en" ? "." : ",") : "";
+      const pwr = real === 1 && HOME.v ? ` · <b>${HOME.v}&nbsp;V</b>` + (HOME.lim !== null ? ` · ⚡&nbsp;${esc(HOME.auto ? L().softPick : L().manualLim)} <b>${HOME.lim}&nbsp;A</b> (≈${kw}&nbsp;${esc(L().kw)})` + (HOME.ia > 1 ? ` →&nbsp;${HOME.ia}&nbsp;A` : "") : "") : "";
+      homeLine = `🏠 ${esc(L().home)}: <b>${esc(real ? L().homeOn : L().homeOff)}</b>${sinceTxt}${pwr}`;
       if (real !== cur) homeLine += `<br>📅 ${esc(L().bySched)}: <b>${esc((cur === 1 ? L().on : cur === 0 ? L().off : L().maybe).toLowerCase())}</b>`;
     }
     const untilLine = j >= line.length ? "" :
@@ -450,6 +451,10 @@ function render(){
   }
 
   $("#app").innerHTML = html;
+  const hl = document.querySelector(".home");
+  if (hl) { hl.style.whiteSpace = "nowrap"; let fs = 14;   // одна строка, если влезает при ≥12.5px; иначе сплошной текст с переносом
+    while (hl.scrollWidth > hl.clientWidth + 1 && fs > 12.5) { fs -= 0.5; hl.style.fontSize = fs + "px"; }
+    if (hl.scrollWidth > hl.clientWidth + 1) { hl.style.whiteSpace = "normal"; hl.style.fontSize = "13.5px"; } }
   // footer
   const upd = RAW.fact && RAW.fact.update || RAW.preset && RAW.preset.updateFact || "";
   const c = CHECKED ? kyiv(CHECKED) : null;
