@@ -122,6 +122,7 @@ footer a{color:var(--muted)}
 @keyframes lvf{0%{color:#16a34a;text-shadow:0 0 8px rgba(22,163,74,.55)}100%{}}
 :root.nopower .lvf{animation:none}
 .status .big .bigSince{white-space:nowrap}
+.gridIco{display:inline-block;width:.95em;height:.95em;vertical-align:-.1em;margin-left:.25em}.gridIco.on{color:#34c759}.gridIco.off{color:#ff453a}
 body.embed header .iconbtn#share,body.embed footer .disc{display:none}
 @media (max-width:380px){.status .big{font-size:23px}.tab{padding:8px}}
 </style>
@@ -182,7 +183,7 @@ const T = {
     disclaimer:"Неофіційний застосунок, не пов'язаний з енергокомпаніями", tomorrowAt:"завтра о", at:"о",
     mon:["Пн","Вт","Ср","Чт","Пт","Сб","Нд"], months:["січ.","лют.","бер.","квіт.","трав.","черв.","лип.","серп.","вер.","жовт.","лист.","груд."],
     copied:"Графік скопійовано", shareHead:"Графік відключень", noData:"Не вдалося завантажити дані. Спробуйте ще раз.",
-    tapSlot:"Торкніться або проведіть пальцем по шкалі, щоб побачити час",home:"Вдома",homeOn:"світло є",homeOff:"світла немає",inv:"від інвертора",use:"витрата",batt:"батарея",since:"з",bySched:"За графіком",copyFail:"Не вдалося скопіювати — виділіть текст і скопіюйте вручну",copyTitle:"Графік",volt:"Напруга мережі",softPick:"зарядка обрала",manualLim:"зарядка вручну",charging:"заряджається",kw:"кВт",nowA:"зараз", left:"залишилось", whole:"весь день"},
+    tapSlot:"Торкніться або проведіть пальцем по шкалі, щоб побачити час",home:"Вдома",homeOn:"світло є",homeOff:"світла немає",inv:"від інвертора",use:"витрата",batt:"батарея",rt:"вистачить на",since:"з",bySched:"За графіком",copyFail:"Не вдалося скопіювати — виділіть текст і скопіюйте вручну",copyTitle:"Графік",volt:"Напруга мережі",softPick:"зарядка обрала",manualLim:"зарядка вручну",charging:"заряджається",kw:"кВт",nowA:"зараз", left:"залишилось", whole:"весь день"},
   ru:{title:"График отключений",queue:"Очередь",region:"Регион",lang:"Язык",done:"Готово",
     on:"Свет есть",off:"Света нет",maybe:"Возможно отключение",
     until:"до",in:"через",turnOn:"Включат в",nextOff:"Следующее отключение",nextMaybe:"Возможное отключение",
@@ -196,7 +197,7 @@ const T = {
     disclaimer:"Неофициальное приложение, не связано с энергокомпаниями", tomorrowAt:"завтра в", at:"в",
     mon:["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], months:["янв.","фев.","мар.","апр.","мая","июн.","июл.","авг.","сен.","окт.","ноя.","дек."],
     copied:"График скопирован", shareHead:"График отключений", noData:"Не удалось загрузить данные. Попробуйте ещё раз.",
-    tapSlot:"Коснитесь или проведите пальцем по шкале, чтобы увидеть время",home:"Дома",homeOn:"свет есть",homeOff:"света нет",inv:"от инвертора",use:"расход",batt:"батарея",since:"с",bySched:"По графику",copyFail:"Не удалось скопировать — выделите текст и скопируйте вручную",copyTitle:"График",volt:"Напряжение сети",softPick:"зарядка выбрала",manualLim:"зарядка вручную",charging:"заряжается",nowA:"сейчас",kw:"кВт", left:"осталось", whole:"весь день"},
+    tapSlot:"Коснитесь или проведите пальцем по шкале, чтобы увидеть время",home:"Дома",homeOn:"свет есть",homeOff:"света нет",inv:"от инвертора",use:"расход",batt:"батарея",rt:"хватит на",since:"с",bySched:"По графику",copyFail:"Не удалось скопировать — выделите текст и скопируйте вручную",copyTitle:"График",volt:"Напряжение сети",softPick:"зарядка выбрала",manualLim:"зарядка вручную",charging:"заряжается",nowA:"сейчас",kw:"кВт", left:"осталось", whole:"весь день"},
   en:{title:"Outage schedule",queue:"Queue",region:"Region",lang:"Language",done:"Done",
     on:"Power is on",off:"No power",maybe:"Possible outage",
     until:"until",in:"in",turnOn:"Back on at",nextOff:"Next outage",nextMaybe:"Possible outage",
@@ -210,7 +211,7 @@ const T = {
     disclaimer:"Unofficial app, not affiliated with energy companies", tomorrowAt:"tomorrow at", at:"at",
     mon:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"], months:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
     copied:"Schedule copied", shareHead:"Outage schedule", noData:"Couldn't load data. Please try again.",
-    tapSlot:"Tap or slide your finger along the bar to see the time",home:"Home",homeOn:"power on",homeOff:"no power",inv:"from inverter",use:"load",batt:"battery",since:"since",bySched:"By schedule",copyFail:"Couldn't copy \u2014 select the text and copy it manually",copyTitle:"Schedule",volt:"Grid voltage",softPick:"charging picked",manualLim:"manual charging",charging:"charging",nowA:"now",kw:"kW",
+    tapSlot:"Tap or slide your finger along the bar to see the time",home:"Home",homeOn:"power on",homeOff:"no power",inv:"from inverter",use:"load",batt:"battery",rt:"lasts",since:"since",bySched:"By schedule",copyFail:"Couldn't copy \u2014 select the text and copy it manually",copyTitle:"Schedule",volt:"Grid voltage",softPick:"charging picked",manualLim:"manual charging",charging:"charging",nowA:"now",kw:"kW",
     left:"left", whole:"all day"}
 };
 
@@ -267,6 +268,10 @@ function addDays(ds, n){ const [y,m,d] = ds.split("-").map(Number); return new D
 function weekday(ds){ const [y,m,d] = ds.split("-").map(Number); return (new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7+1; } // 1=Mon
 function hhmm(slot){ const t = slot*30; return String(Math.floor(t/60)%24).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); }
 function endLabel(slot){ return slot === 48 ? "24:00" : hhmm(slot); }
+function gridIco(v){
+  if (v !== 0 && v !== 1) return "";
+  return `<svg class="gridIco ${v ? "on" : "off"}" viewBox="0 0 24 24" aria-label="${v ? "grid on" : "grid off"}"><path fill="currentColor" d="M8.28,5.45L6.5,4.55L7.76,2H16.23L17.5,4.55L15.72,5.44L15,4H9L8.28,5.45M18.62,8H14.09L13.3,5H10.7L9.91,8H5.38L4.1,10.55L5.89,11.44L6.62,10H17.38L18.1,11.45L19.89,10.56L18.62,8M17.77,22H15.7L15.46,21.1L12,15.9L8.53,21.1L8.3,22H6.23L9.12,11H11.19L10.83,12.35L12,14.1L13.16,12.35L12.81,11H14.88L17.77,22M11.4,15L10.5,13.65L9.32,18.13L11.4,15M14.68,18.12L13.5,13.64L12.6,15L14.68,18.12Z"/>${v ? "" : `<line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`}</svg>`;
+}
 function dur(min){ min = Math.max(0, Math.round(min)); const h = Math.floor(min/60), m = min%60;
   return (h ? `${h} ${L().h}` : "") + (h && m ? " " : "") + (m || !h ? `${m} ${L().m}` : ""); }
 function hoursStr(n){ return (Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")) + " " + L().h; }
@@ -287,6 +292,7 @@ let HOME = (() => {
   const num = k => qs.get(k) !== null && qs.get(k) !== "" && isFinite(+qs.get(k)) ? +qs.get(k) : null;
   return {on: g === "1", since: gs ? new Date(gs*1000) : null, ts, v: num("v"), lim: num("lim"), ia: num("ia"), auto: qs.get("auto") !== "0", lv: num("lv"), lp: num("lp"), bi: num("bi"), soc: num("soc")};
 })();
+const BAT_AH = +qs.get("cap") || 314, BAT_SD = +qs.get("sd") || 10;   // батарея дома: А·ч и % отключения
 // живые данные дома: HA пишет их в файл при каждом изменении и каждые 30 с; читаем при открытии и каждые 2 с
 const LIVE_URL = "https://petsacaldar.pp.ua/local/svitlo/live-k7q2.js";
 const wantLive = !!HOME || qs.get("live") === "1";
@@ -433,7 +439,9 @@ function render(){
       const inv = real === 0 && HOME.lv !== null && HOME.lv > 150;
       const invTxt = inv ? ` · ${esc(L().inv)} · <b class="lv${fl("lv")}">${fV(HOME.lv)}&nbsp;V</b>` +
         (HOME.lp !== null ? ` · ${esc(L().use)} <b class="lv${fl("lp")}">${HOME.lp}&nbsp;W</b>` + (HOME.bi !== null ? ` (${esc(L().batt)}&nbsp;<span class="lv${fl("bi")}">${fA(Math.abs(HOME.bi))}&nbsp;A</span>)` : "") : "") +
-        (HOME.soc !== null ? ` · 🔋&nbsp;<span class="lv${fl("soc")}">${HOME.soc}%</span>` : "") : "";
+        (HOME.soc !== null ? ` · 🔋&nbsp;<span class="lv${fl("soc")}">${HOME.soc}%</span>` : "") +
+        // примерно сколько ещё протянет батарея: ёмкость 314 А·ч, инвертор отключит при 10 %, ток разряда сейчас
+        (HOME.soc !== null && HOME.bi !== null && HOME.bi > 0.3 ? ` · ⏳&nbsp;${esc(L().rt)} <b>≈${esc(dur(Math.round(Math.max(0, HOME.soc - BAT_SD)/100*BAT_AH/HOME.bi*60/10)*10))}</b>` : "") : "";
       homeLine = inv ? `🏠 ${esc(L().home)}: <b>${esc(L().homeOn)}</b>${invTxt}`
                      : `🏠 ${esc(L().home)}: <b>${esc(real ? L().homeOn : L().homeOff)}</b>${sinceTxt}${pwr}`;
       if (real !== cur) homeLine += `<br>📅 ${esc(L().bySched)}: <b>${esc((cur === 1 ? L().on : cur === 0 ? L().off : L().maybe).toLowerCase())}</b>`;
@@ -462,7 +470,7 @@ function render(){
     const pct = total ? Math.min(100, Math.max(0, (nowMin - st*30)/total*100)) : 0;
     html += `<div class="card statusCard ${cls}">
       <div class="status ${cls}"><div class="bulb">${shown===1?"💡":shown===0?"🕯️":"⚠️"}</div>
-      <div><div class="big">${esc(big)}${bigSince ? ` <span class="bigSince">${esc(L().since)} ${esc(bigSince)}</span>` : ""}</div>${real === null || real === cur ? `<div class="until">${untilLine}</div>` : ""}</div></div>
+      <div><div class="big">${esc(big)}${bigSince ? ` <span class="bigSince">${esc(L().since)} ${esc(bigSince)}${gridIco(shown)}</span>` : gridIco(shown)}</div>${real === null || real === cur ? `<div class="until">${untilLine}</div>` : ""}</div></div>
       ${homeLine ? `<div class="home">${homeLine}</div>` : ""}
       ${j < line.length ? `<div class="progress"><i style="width:${pct.toFixed(1)}%"></i></div>` : ""}
       ${nextHtml ? `<div class="next">${nextHtml}</div>` : ""}</div>`;
