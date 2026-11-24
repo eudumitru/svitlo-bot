@@ -90,7 +90,7 @@ header .grow{flex:1;min-width:0}
 .note{background:color-mix(in srgb,var(--maybe) 14%,transparent);border-radius:12px;padding:9px 12px;margin-bottom:12px;font-size:14px}
 .note.info{background:color-mix(in srgb,var(--accent) 13%,transparent)}
 .bar{touch-action:none}
-.home{margin-top:8px;font-size:14px;color:var(--muted)} .home b{color:var(--text)}
+.home{margin-top:8px;font-size:14px;font-weight:600;color:var(--text)} .home b{color:var(--text);font-weight:800}
 .copybox{width:100%;min-height:150px;margin:6px 0 12px;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px;font:14px/1.4 inherit;resize:none}
 .tip{min-height:20px;margin-top:8px;font-size:13.5px;color:var(--muted)}
 /* week */
@@ -441,16 +441,16 @@ function render(){
       const fV = x => (Number.isInteger(x) ? String(x) : x.toFixed(1)).replace(".", dec);
       const pwr = real === 1 && HOME.v ? ` · <b class="lv${fl("v")}">${fV(HOME.v)}&nbsp;V</b>` + (HOME.lim !== null ? ` · ⚡&nbsp;${esc(HOME.auto ? L().softPick : L().manualLim)} <b class="lv${fl("lim")}">${HOME.lim}&nbsp;A</b> ` + (() => {   // в скобках — сколько кВт реально идёт в батарею (battery_power < 0 = заряд), иначе ток × 53,5 V
           const w = HOME.bp !== null ? Math.max(0, -HOME.bp) : HOME.ia !== null ? HOME.ia*53.5 : null;
-          return w === null ? `(≈${kw}&nbsp;${esc(L().kw)})` : `(<span class="lv${fl("bp")}${fl("ia")}">${(w/1000).toFixed(2).replace(".", dec)}&nbsp;${esc(L().kw)}</span>)`;
+          return w === null ? `(≈${kw}&nbsp;${esc(L().kw)})` : `(${HOME.ia !== null ? `<b class="lv${fl("ia")}">${fA(HOME.ia)}&nbsp;A</b> · ` : ""}<b class="lv${fl("bp")}">${(w/1000).toFixed(2).replace(".", dec)}&nbsp;${esc(L().kw)}</b>)`;
         })() : "") +
         // после скобок: заряд батареи и сколько ещё до 100 % при нынешнем токе (ёмкость 314 А·ч)
-        (HOME.soc !== null ? ` · 🔋&nbsp;<span class="lv${fl("soc")}">${HOME.soc}%</span>` +
+        (HOME.soc !== null ? ` · 🔋&nbsp;<b class="lv${fl("soc")}">${HOME.soc}%</b>` +
           (HOME.soc < 100 && HOME.ia !== null && HOME.ia > 0.3 ? ` · ⏳&nbsp;${esc(L().full)} <b>≈${esc(batLeft((100 - HOME.soc)/100*BAT_AH/HOME.ia*60))}</b>` : "") : "") : "";
       // сети нет, но инвертор держит дом: 🏠 Дома: свет есть · от инвертора · 232,7 V · расход 1736 W (батарея 35,7 A) · 🔋 99%
       const inv = real === 0 && HOME.lv !== null && HOME.lv > 150;
       const invTxt = inv ? ` · ${esc(L().inv)}${invIco()} · <b class="lv${fl("lv")}">${fV(HOME.lv)}&nbsp;V</b>` +
-        (HOME.lp !== null ? ` · ${esc(L().use)} <b class="lv${fl("lp")}">${HOME.lp}&nbsp;W</b>` + (HOME.bi !== null ? ` (${esc(L().batt)}&nbsp;<span class="lv${fl("bi")}">${fA(Math.abs(HOME.bi))}&nbsp;A</span>)` : "") : "") +
-        (HOME.soc !== null ? ` · 🔋&nbsp;<span class="lv${fl("soc")}">${HOME.soc}%</span>` : "") +
+        (HOME.lp !== null ? ` · ${esc(L().use)} <b class="lv${fl("lp")}">${HOME.lp}&nbsp;W</b>` + (HOME.bi !== null ? ` (${esc(L().batt)}&nbsp;<b class="lv${fl("bi")}">${fA(Math.abs(HOME.bi))}&nbsp;A</b>)` : "") : "") +
+        (HOME.soc !== null ? ` · 🔋&nbsp;<b class="lv${fl("soc")}">${HOME.soc}%</b>` : "") +
         // примерно сколько ещё протянет батарея: ёмкость 314 А·ч, инвертор отключит при 10 %, ток разряда сейчас
         (HOME.soc !== null && HOME.bi !== null && HOME.bi > 0.3 ? ` · ⏳&nbsp;${esc(L().rt)} <b>≈${esc(batLeft(Math.max(0, HOME.soc - BAT_SD)/100*BAT_AH/HOME.bi*60))}</b>` : "") : "";
       homeLine = inv ? `🏠 ${esc(L().home)}: <b>${esc(L().homeOn)}</b>${invTxt}`
