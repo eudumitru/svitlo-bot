@@ -89,6 +89,9 @@ header .grow{flex:1;min-width:0}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:14px;color:var(--muted);font-size:13px}
 .note{background:color-mix(in srgb,var(--maybe) 14%,transparent);border-radius:12px;padding:9px 12px;margin-bottom:12px;font-size:14px}
 .note.info{background:color-mix(in srgb,var(--accent) 13%,transparent)}
+.bar{touch-action:none}
+.home{margin-top:8px;font-size:14px;color:var(--muted)} .home b{color:var(--text)}
+.copybox{width:100%;min-height:150px;margin:6px 0 12px;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px;font:14px/1.4 inherit;resize:none}
 .tip{min-height:20px;margin-top:8px;font-size:13.5px;color:var(--muted)}
 /* week */
 .week{display:grid;grid-template-columns:28px 1fr;gap:5px 8px;align-items:center}
@@ -175,7 +178,7 @@ const T = {
     disclaimer:"Неофіційний застосунок, не пов'язаний з енергокомпаніями", tomorrowAt:"завтра о", at:"о",
     mon:["Пн","Вт","Ср","Чт","Пт","Сб","Нд"], months:["січ.","лют.","бер.","квіт.","трав.","черв.","лип.","серп.","вер.","жовт.","лист.","груд."],
     copied:"Графік скопійовано", shareHead:"Графік відключень", noData:"Не вдалося завантажити дані. Спробуйте ще раз.",
-    tapSlot:"Натисніть на шкалу, щоб побачити час", left:"залишилось", whole:"весь день"},
+    tapSlot:"Торкніться або проведіть пальцем по шкалі, щоб побачити час",home:"Вдома",homeOn:"світло є",homeOff:"світла немає",since:"з",bySched:"За графіком",copyFail:"Не вдалося скопіювати — виділіть текст і скопіюйте вручну",copyTitle:"Графік", left:"залишилось", whole:"весь день"},
   ru:{title:"График отключений",queue:"Очередь",region:"Регион",lang:"Язык",done:"Готово",
     on:"Свет есть",off:"Света нет",maybe:"Возможно отключение",
     until:"до",in:"через",turnOn:"Включат в",nextOff:"Следующее отключение",nextMaybe:"Возможное отключение",
@@ -189,7 +192,7 @@ const T = {
     disclaimer:"Неофициальное приложение, не связано с энергокомпаниями", tomorrowAt:"завтра в", at:"в",
     mon:["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], months:["янв.","фев.","мар.","апр.","мая","июн.","июл.","авг.","сен.","окт.","ноя.","дек."],
     copied:"График скопирован", shareHead:"График отключений", noData:"Не удалось загрузить данные. Попробуйте ещё раз.",
-    tapSlot:"Нажмите на шкалу, чтобы увидеть время", left:"осталось", whole:"весь день"}
+    tapSlot:"Коснитесь или проведите пальцем по шкале, чтобы увидеть время",home:"Дома",homeOn:"свет есть",homeOff:"света нет",since:"с",bySched:"По графику",copyFail:"Не удалось скопировать — выделите текст и скопируйте вручную",copyTitle:"График", left:"осталось", whole:"весь день"}
 };
 
 const tg = window.Telegram && Telegram.WebApp && Telegram.WebApp.initData !== undefined ? Telegram.WebApp : null;
@@ -200,7 +203,8 @@ const store = {
 };
 
 // ---------- settings ----------
-let S = Object.assign({region:"odesa", queue:"2.2", lang:null}, store.get("svitlo:settings", {}));
+let S = Object.assign({region:"odesa", queue:"2.2", lang:null, langSet:false}, store.get("svitlo:settings", {}));
+if (!S.langSet) S.lang = null;   // язык, выбранный автоматически раньше, не считается выбором
 (function applyParams(){
   // ?r=odesa&q=2.2  or Telegram start_param  "odesa_2_2"
   const sp = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || qs.get("tgWebAppStartParam") || "";
@@ -210,8 +214,8 @@ let S = Object.assign({region:"odesa", queue:"2.2", lang:null}, store.get("svitl
   if (qs.get("q") && /^\d\.\d$/.test(qs.get("q"))) S.queue = qs.get("q");
   if (qs.get("lang") && T[qs.get("lang")]) S.lang = qs.get("lang");
   if (!S.lang) {
-    const lc = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || navigator.language || "uk";
-    S.lang = /^ru/.test(lc) ? "ru" : "uk";
+    const lc = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || navigator.language || "ru";
+    S.lang = /^uk/.test(lc) ? "uk" : "ru";   // по умолчанию русский, украинский — только если язык Telegram украинский
   }
   if (qs.get("embed")) document.body.classList.add("embed");
 })();
@@ -257,7 +261,14 @@ function toSlots(hours){
   for (let h = 1; h <= 24; h++) out.push(...(MAP[hours[h]] || [1,1]));
   return out;
 }
-let RAW = null, OFFLINE = false, CHECKED = null, view = {tab:"today", day:null};
+// реальная сеть из Home Assistant: кнопка в боте передаёт ?grid=0|1&gs=<с какого момента>&ts=<когда отправлено>
+const HOME = (() => {
+  const g = qs.get("grid"), ts = +qs.get("ts") || 0, gs = +qs.get("gs") || 0;
+  if (g !== "0" && g !== "1" || !ts) return null;
+  return {on: g === "1", since: gs ? new Date(gs*1000) : null, ts};
+})();
+const homeFresh = () => HOME && Date.now()/1000 - HOME.ts < 20*60;
+let RAW = null, OFFLINE = false, CHECKED = null, view = {tab:"today", day:null}, tipSlot = null;
 
 async function fetchRegion(region){
   const bust = Math.floor(Date.now()/60000);
@@ -334,10 +345,19 @@ function render(){
     let st = nowSlot; while (st > 0 && line[st-1] === cur) st--;
     const endMin = j*30, leftMin = endMin - nowMin, total = (j - st)*30;
     const endTxt = j >= line.length ? "—" : (j >= 48 ? `${L().tomorrowAt} ${hhmm(j)}` : `${L().at} ${endLabel(j)}`).replace(/^(о|в) /, "");
-    const cls = cur === 1 ? "on" : cur === 0 ? "off" : "maybe";
-    const np = cur === 0, root = document.documentElement;
+    const real = homeFresh() ? (HOME.on ? 1 : 0) : null;
+    const shown = real === null ? cur : real;
+    const cls = shown === 1 ? "on" : shown === 0 ? "off" : "maybe";
+    const np = shown === 0, root = document.documentElement;
     if (root.classList.contains("nopower") !== np) { root.classList.toggle("nopower", np); syncTgColors(); }
-    const big = cur === 1 ? L().on : cur === 0 ? L().off : L().maybe;
+    const big = shown === 1 ? L().on : shown === 0 ? L().off : L().maybe;
+    let homeLine = "";
+    if (real !== null) {
+      const t = HOME.since ? kyiv(HOME.since) : null, sameDay = t && t.date === today;
+      const sinceTxt = t ? ` · ${L().since} ${sameDay ? "" : t.date.slice(8,10)+"."+t.date.slice(5,7)+" "}${String(t.h).padStart(2,"0")}:${String(t.m).padStart(2,"0")}` : "";
+      homeLine = `🏠 ${esc(L().home)}: <b>${esc(real ? L().homeOn : L().homeOff)}</b>${sinceTxt}`;
+      if (real !== cur) homeLine += `<br>📅 ${esc(L().bySched)}: <b>${esc((cur === 1 ? L().on : cur === 0 ? L().off : L().maybe).toLowerCase())}</b>`;
+    }
     const untilLine = j >= line.length ? "" :
       cur === 0 ? `${L().turnOn} <b>${esc(j >= 48 ? hhmm(j) : endLabel(j))}</b>${j>=48?" ("+L().tomorrow.toLowerCase()+")":""} · ${L().in} ${dur(leftMin)}`
                 : `${L().until} <b>${esc(endTxt)}</b> · ${L().in} ${dur(leftMin)}`;
@@ -361,8 +381,9 @@ function render(){
     }
     const pct = total ? Math.min(100, Math.max(0, (nowMin - st*30)/total*100)) : 0;
     html += `<div class="card statusCard ${cls}">
-      <div class="status ${cls}"><div class="bulb">${cur===1?"💡":cur===0?"🕯️":"⚠️"}</div>
-      <div><div class="big">${esc(big)}</div><div class="until">${untilLine}</div></div></div>
+      <div class="status ${cls}"><div class="bulb">${shown===1?"💡":shown===0?"🕯️":"⚠️"}</div>
+      <div><div class="big">${esc(big)}</div>${real === null || real === cur ? `<div class="until">${untilLine}</div>` : ""}</div></div>
+      ${homeLine ? `<div class="home">${homeLine}</div>` : ""}
       ${j < line.length ? `<div class="progress"><i style="width:${pct.toFixed(1)}%"></i></div>` : ""}
       ${nextHtml ? `<div class="next">${nextHtml}</div>` : ""}</div>`;
   }
@@ -398,7 +419,7 @@ function render(){
         return `<div class="slot s${v}${past?" past":""}${changed?" chg":""}" data-i="${i}"></div>`;
       }).join("") + (isToday ? `<div class="now" style="left:${(nowMin/1440*100).toFixed(2)}%"></div>` : "") + `</div>
         <div class="hours"><span>00</span><span>03</span><span>06</span><span>09</span><span>12</span><span>15</span><span>18</span><span>21</span><span>24</span></div>
-        <div class="tip" id="tip">${esc(L().tapSlot)}</div>`;
+        <div class="tip" id="tip">${tipSlot !== null && d.slots[tipSlot] !== undefined ? tipHtml(tipSlot, d.slots[tipSlot]) : esc(L().tapSlot)}</div>`;
       const rs = runs(d.slots).filter(r => r.v !== 1);
       if (rs.length) html += `<div class="chips">` + rs.map(r => {
         const past = isToday && r.b <= nowSlot;
@@ -417,6 +438,8 @@ function render(){
   $("#upd").textContent = `${L().operator}: ${upd}` + (c ? ` · ${L().checked} ${String(c.h).padStart(2,"0")}:${String(c.m).padStart(2,"0")}` : "");
   bind();
 }
+
+function tipHtml(i, v){ return `<b>${hhmm(i)}–${endLabel(i+1)}</b> · ${esc(v===1?L().legOn:v===0?L().legOff:L().legMaybe)}`; }
 
 function legend(withChg){
   return `<div class="legend"><span><i class="dot d-on"></i>${esc(L().legOn)}</span><span><i class="dot d-off"></i>${esc(L().legOff)}</span>
@@ -439,23 +462,34 @@ function renderWeek(M, today, now){
 }
 
 function bind(){
-  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { haptic(); view = {tab:b.dataset.tab, day:null}; render(); });
+  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { haptic(); view = {tab:b.dataset.tab, day:null}; tipSlot = null; render(); });
   document.querySelectorAll("[data-day]").forEach(r => r.onclick = () => {
     haptic(); const ds = r.dataset.day, today = kyiv().date;
-    view = ds === today ? {tab:"today"} : ds === addDays(today,1) ? {tab:"tomorrow"} : {tab:"day", day:ds}; render();
+    tipSlot = null; view = ds === today ? {tab:"today"} : ds === addDays(today,1) ? {tab:"tomorrow"} : {tab:"day", day:ds}; render();
     window.scrollTo({top:0, behavior:"smooth"});
   });
   const bar = $("#bar");
-  if (bar) bar.onclick = e => {
-    const r = bar.getBoundingClientRect(), i = Math.max(0, Math.min(47, Math.floor((e.clientX - r.left)/r.width*48)));
-    const v = +bar.children[i].className.match(/s(\d)/)[1];
-    $("#tip").innerHTML = `<b>${hhmm(i)}–${endLabel(i+1)}</b> · ${esc(v===1?L().legOn:v===0?L().legOff:L().legMaybe)}`;
-    haptic("soft");
-  };
+  if (bar) {
+    let drag = false;
+    const pick = e => {
+      const r = bar.getBoundingClientRect(), i = Math.max(0, Math.min(47, Math.floor((e.clientX - r.left)/r.width*48)));
+      if (i === tipSlot) return;
+      tipSlot = i;
+      const v = +bar.children[i].className.match(/s(\d)/)[1];
+      $("#tip").innerHTML = tipHtml(i, v);
+      haptic("soft");
+    };
+    bar.onpointerdown = e => { drag = true; try { bar.setPointerCapture(e.pointerId); } catch(x){} tipSlot = null; pick(e); };
+    bar.onpointermove = e => { if (drag) pick(e); };
+    bar.onpointerup = bar.onpointercancel = () => { drag = false; };
+  }
 }
 
 // ---------- settings sheet ----------
+const PANEL_HTML = document.querySelector("#sheet .panel").innerHTML;
 function openSheet(){
+  if (!$("#regions")) { $("#sheet .panel").innerHTML = PANEL_HTML; $("#done").onclick = () => $("#sheet").classList.remove("open"); }
+  document.querySelectorAll("#sheet [data-t]").forEach(el => el.textContent = L()[el.dataset.t]);
   const qsList = RAW && RAW.preset && RAW.preset.sch_names ? Object.keys(RAW.preset.sch_names).map(k => k.replace("GPV","")) :
     ["1.1","1.2","2.1","2.2","3.1","3.2","4.1","4.2","5.1","5.2","6.1","6.2"];
   $("#regions").innerHTML = Object.keys(REGIONS).map(r => `<button class="pill ${r===S.region?"sel":""}" data-r="${r}">${esc(REGIONS[r][S.lang])}</button>`).join("");
@@ -464,7 +498,7 @@ function openSheet(){
   $("#sheet").classList.add("open");
   $("#sheet").querySelectorAll("[data-r]").forEach(b => b.onclick = async () => { haptic(); S.region = b.dataset.r; save(); await reload(); openSheet(); });
   $("#sheet").querySelectorAll("[data-q]").forEach(b => b.onclick = () => { haptic(); S.queue = b.dataset.q; save(); render(); openSheet(); });
-  $("#sheet").querySelectorAll("[data-l]").forEach(b => b.onclick = () => { haptic(); S.lang = b.dataset.l; save(); render(); openSheet(); });
+  $("#sheet").querySelectorAll("[data-l]").forEach(b => b.onclick = () => { haptic(); S.lang = b.dataset.l; S.langSet = true; save(); render(); openSheet(); });
 }
 function save(){
   store.set("svitlo:settings", S);
@@ -485,9 +519,23 @@ $("#share").onclick = async () => {
     lines.push(rs.length ? rs.map(r => `${r.v===0?"🔴":"🟡"} ${hhmm(r.a)}–${endLabel(r.b)}`).join("\n") : `🟢 ${L().noOff}`);
   }
   const text = lines.join("\n");
-  try { if (navigator.share && !tg) { await navigator.share({text}); return; } } catch(e){}
-  try { await navigator.clipboard.writeText(text); } catch(e){}
-  if (tg && tg.showAlert) tg.showAlert(L().copied); else alert(L().copied);
+  try { if (navigator.share && !tg) { await navigator.share({text}); return; } } catch(e){ if (e && e.name === "AbortError") return; }
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch(e){}
+  if (!ok) { // старый способ — работает во встроенном браузере Telegram
+    const ta = document.createElement("textarea"); ta.value = text; ta.style.cssText = "position:fixed;top:-1000px;opacity:0";
+    document.body.appendChild(ta); ta.select();
+    try { ok = document.execCommand("copy"); } catch(e){}
+    ta.remove();
+  }
+  if (ok) { if (tg && tg.showAlert) tg.showAlert(L().copied); else alert(L().copied); return; }
+  // не скопировалось — показываем текст, чтобы скопировать вручную
+  const panel = $("#sheet .panel");
+  panel.innerHTML = `<h2>${esc(L().copyTitle)}</h2><div class="muted" style="font-size:13.5px">${esc(L().copyFail)}</div><textarea class="copybox" readonly></textarea><button class="btn" id="copyok">OK</button>`;
+  panel.querySelector("textarea").value = text;
+  $("#sheet").classList.add("open");
+  setTimeout(() => { const t = panel.querySelector("textarea"); t.focus(); t.select(); }, 50);
+  $("#copyok").onclick = () => $("#sheet").classList.remove("open");
 };
 
 async function reload(){
@@ -499,7 +547,7 @@ async function reload(){
 (async function init(){
   // pick up settings saved in Telegram cloud (sync between devices)
   if (tg && tg.CloudStorage && !qs.get("q") && !qs.get("r")) {
-    await new Promise(res => { try { tg.CloudStorage.getItem("settings", (e, v) => { try { if (!e && v) Object.assign(S, JSON.parse(v)); } catch(x){} res(); }); } catch(e){ res(); } setTimeout(res, 800); });
+    await new Promise(res => { try { tg.CloudStorage.getItem("settings", (e, v) => { try { if (!e && v) { const c = JSON.parse(v); if (!c.langSet) { delete c.lang; delete c.langSet; } Object.assign(S, c); } } catch(x){} res(); }); } catch(e){ res(); } setTimeout(res, 800); });
   }
   const cached = store.get("svitlo:raw:"+S.region, null);
   if (cached) { RAW = cached; render(); }
