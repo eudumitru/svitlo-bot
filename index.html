@@ -347,12 +347,15 @@ function pollLive(force){
     const s = id => st[id]?.state, n = id => { const x = parseFloat(s(id)); return isFinite(x) ? x : null; }, r = (x, k) => x === null ? null : Math.round(x*k)/k;
     takeHaSch(s("input_text.ozerne_grafik_kesh"));
     if (!wantLive) return;
-    const g = s("input_boolean.set_est"), bi = n("sensor.deye8kw_battery_current");
+    // ТЕСТ (input_boolean.svitlo_test_ot_invertora): показываем «сети нет, дом от инвертора», ничего в доме не трогая
+    const test = s("input_boolean.svitlo_test_ot_invertora") === "on", lp0 = n("sensor.deye8kw_load_l1_power");
+    const g = test ? "off" : s("input_boolean.set_est"), bi = test ? r((lp0 || 0)/52, 100) : n("sensor.deye8kw_battery_current");
     if (g === "on" || g === "off") {
-      window.__svitloLive({grid: g === "on" ? 1 : 0, gs: Math.round(st["input_datetime.set_vremia_poslednei_smeny"]?.attributes?.timestamp || 0),
-        v: r(n("sensor.deye8kw_grid_voltage_l1"), 10), lim: n("number.192_168_0_237_battery_grid_charging_current"), ia: bi === null ? null : r(Math.max(0, -bi), 100),
-        auto: s("automation.deye_plavnaia_zariadka_ot_slaboi_seti") === "on" ? 1 : 0, lv: r(n("sensor.deye8kw_load_voltage"), 10), lp: n("sensor.deye8kw_load_l1_power"),
-        bi: r(bi, 100), bp: n("sensor.deye8kw_battery_power"), soc: n("sensor.deye8kw_battery_soc"), ts: Math.floor(Date.now()/1000)});
+      const gs = test ? Math.round(Date.parse(st["input_boolean.svitlo_test_ot_invertora"].last_changed)/1000) : Math.round(st["input_datetime.set_vremia_poslednei_smeny"]?.attributes?.timestamp || 0);
+      window.__svitloLive({grid: g === "on" ? 1 : 0, gs,
+        v: test ? 0 : r(n("sensor.deye8kw_grid_voltage_l1"), 10), lim: n("number.192_168_0_237_battery_grid_charging_current"), ia: test ? 0 : bi === null ? null : r(Math.max(0, -bi), 100),
+        auto: s("automation.deye_plavnaia_zariadka_ot_slaboi_seti") === "on" ? 1 : 0, lv: test ? Math.max(230, r(n("sensor.deye8kw_load_voltage"), 10) || 0) : r(n("sensor.deye8kw_load_voltage"), 10), lp: lp0,
+        bi: r(bi, 100), bp: test ? lp0 : n("sensor.deye8kw_battery_power"), soc: n("sensor.deye8kw_battery_soc"), ts: Math.floor(Date.now()/1000)});
       return;
     }
   }
