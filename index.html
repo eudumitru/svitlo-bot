@@ -306,7 +306,23 @@ const BAT_AH = +qs.get("cap") || 314, BAT_SD = +qs.get("sd") || 10;   // бат�
 const LIVE_URL = "https://petsacaldar.pp.ua/local/svitlo/live-k7q2.js";
 const wantLive = !!HOME || qs.get("live") === "1";
 let liveKey = "", LIVE_FLASH = [];
+// график из HA (input_text.ozerne_grafik_kesh) — тот же, что приходит в Telegram; ДТЕК там появляется раньше зеркала
+let HA_SCH = null;
+function takeHaSch(str){
+  if (!str || typeof str !== "string") return;
+  const parts = str.split("|"), days = {};
+  for (const p of parts) { const m = /^(\d{4}-\d{2}-\d{2})=([01p]{48})$/.exec(p.trim()); if (m) days[m[1]] = [...m[2]].map(c => c === "0" ? 0 : c === "1" ? 1 : 2); }
+  if (!Object.keys(days).length) return;
+  const upd = parts.filter(p => !p.includes("=")).map(p => p.trim()).filter(Boolean);
+  const key = str;
+  if (HA_SCH && HA_SCH.key === key) return;
+  HA_SCH = {days, src: upd[0] || "HA", upd: upd[1] || "", key};
+  try { if (RAW) render(); } catch(e) {}
+}
+const haSchApplies = () => S.region === "odesa" && S.queue === "2.2";
 window.__svitloLive = d => {
+  if (d && d.sch && (!d.ts || Date.now()/1000 - d.ts < 86400)) takeHaSch(d.sch);
+  if (!wantLive) return;
   if (!d || !d.ts || Date.now()/1000 - d.ts > 180 || (HOME && HOME.live && HOME.ts > d.ts)) return;   // живые данные главнее снимка из ссылки
   const n = x => typeof x === "number" ? x : null;
   HOME = {on: d.grid === 1, since: d.gs ? new Date(d.gs*1000) : null, ts: d.ts, v: n(d.v), lim: n(d.lim), ia: n(d.ia), auto: d.auto !== 0, lv: n(d.lv), lp: n(d.lp), bi: n(d.bi), bp: n(d.bp), soc: n(d.soc), live: true};
@@ -324,11 +340,13 @@ function haStates(){
   }
   return null;
 }
-function pollLive(){
-  if (!wantLive || document.hidden) return;
+function pollLive(force){
+  if ((!wantLive && !(force && haSchApplies())) || document.hidden) return;
   const st = haStates();
   if (st) {
     const s = id => st[id]?.state, n = id => { const x = parseFloat(s(id)); return isFinite(x) ? x : null; }, r = (x, k) => x === null ? null : Math.round(x*k)/k;
+    takeHaSch(s("input_text.ozerne_grafik_kesh"));
+    if (!wantLive) return;
     const g = s("input_boolean.set_est"), bi = n("sensor.deye8kw_battery_current");
     if (g === "on" || g === "off") {
       window.__svitloLive({grid: g === "on" ? 1 : 0, gs: Math.round(st["input_datetime.set_vremia_poslednei_smeny"]?.attributes?.timestamp || 0),
@@ -375,6 +393,7 @@ function model(){
     if (!fact[ts][q]) continue;
     days[kyiv(new Date(+ts*1000)).date] = {slots: toSlots(fact[ts][q]), src:"fact"};
   }
+  if (HA_SCH && haSchApplies()) for (const ds of Object.keys(HA_SCH.days)) days[ds] = {slots: HA_SCH.days[ds], src:"fact", ha:true};
   const preset = (RAW.preset && RAW.preset.data && RAW.preset.data[q]) || null;
   const get = ds => days[ds] || (preset && preset[weekday(ds)] ? {slots: toSlots(preset[weekday(ds)]), src:"preset"} : null);
   return {get, preset, days};
@@ -540,7 +559,7 @@ function render(){
     while (hl.scrollWidth > hl.clientWidth + 1 && fs > 12.5) { fs -= 0.5; hl.style.fontSize = fs + "px"; }
     if (hl.scrollWidth > hl.clientWidth + 1) { hl.style.whiteSpace = "normal"; hl.style.fontSize = "13.5px"; } }
   // footer
-  const upd = RAW.fact && RAW.fact.update || RAW.preset && RAW.preset.updateFact || "";
+  const upd = (HA_SCH && haSchApplies() && HA_SCH.upd ? `${HA_SCH.upd} (${HA_SCH.src})` : "") || RAW.fact && RAW.fact.update || RAW.preset && RAW.preset.updateFact || "";
   const c = CHECKED ? kyiv(CHECKED) : null;
   $("#upd").textContent = `${L().operator}: ${upd}` + (c ? ` · ${L().checked} ${String(c.h).padStart(2,"0")}:${String(c.m).padStart(2,"0")}` : "");
   bind();
@@ -646,6 +665,7 @@ $("#share").onclick = async () => {
 };
 
 async function reload(){
+  pollLive(true);   // свежий график из HA — сразу, не дожидаясь зеркала
   const r = await fetchRegion(S.region);
   RAW = r.data; OFFLINE = r.offline; if (!r.offline) CHECKED = new Date();
   render();
