@@ -285,7 +285,7 @@ let HOME = (() => {
   const g = qs.get("grid"), ts = +qs.get("ts") || 0, gs = +qs.get("gs") || 0;
   if (g !== "0" && g !== "1" || !ts) return null;
   const num = k => qs.get(k) !== null && qs.get(k) !== "" && isFinite(+qs.get(k)) ? +qs.get(k) : null;
-  return {on: g === "1", since: gs ? new Date(gs*1000) : null, ts, v: num("v"), lim: num("lim"), ia: num("ia"), auto: qs.get("auto") !== "0"};
+  return {on: g === "1", since: gs ? new Date(gs*1000) : null, ts, v: num("v"), lim: num("lim"), ia: num("ia"), auto: qs.get("auto") !== "0", lv: num("lv"), lp: num("lp"), bi: num("bi"), soc: num("soc")};
 })();
 // живые данные дома: HA пишет их в файл при каждом изменении и каждые 30 с; читаем при открытии и каждые 2 с
 const LIVE_URL = "https://petsacaldar.pp.ua/local/svitlo/live-k7q2.js";
@@ -301,8 +301,28 @@ window.__svitloLive = d => {
     liveKey = k; if (RAW) render(); LIVE_FLASH = [];
   }
 };
+// внутри Home Assistant (окно «График отключений» в LCD открыто как srcdoc того же адреса) — берём данные прямо из HA,
+// без внешнего файла: работает в любом браузере и без интернета
+function haStates(){
+  for (const w of [window.parent, window.top]) {
+    try { if (w && w !== window) { const st = w.document.querySelector("home-assistant")?.hass?.states; if (st) return st; } } catch(e) {}
+  }
+  return null;
+}
 function pollLive(){
   if (!wantLive || document.hidden) return;
+  const st = haStates();
+  if (st) {
+    const s = id => st[id]?.state, n = id => { const x = parseFloat(s(id)); return isFinite(x) ? x : null; }, r = (x, k) => x === null ? null : Math.round(x*k)/k;
+    const g = s("input_boolean.set_est"), bi = n("sensor.deye8kw_battery_current");
+    if (g === "on" || g === "off") {
+      window.__svitloLive({grid: g === "on" ? 1 : 0, gs: Math.round(st["input_datetime.set_vremia_poslednei_smeny"]?.attributes?.timestamp || 0),
+        v: r(n("sensor.deye8kw_grid_voltage_l1"), 10), lim: n("number.192_168_0_237_battery_grid_charging_current"), ia: bi === null ? null : r(Math.max(0, -bi), 100),
+        auto: s("automation.deye_plavnaia_zariadka_ot_slaboi_seti") === "on" ? 1 : 0, lv: r(n("sensor.deye8kw_load_voltage"), 10), lp: n("sensor.deye8kw_load_l1_power"),
+        bi: r(bi, 100), soc: n("sensor.deye8kw_battery_soc"), ts: Math.floor(Date.now()/1000)});
+      return;
+    }
+  }
   const s = document.createElement("script");
   s.src = LIVE_URL + "?t=" + Date.now();
   s.onload = s.onerror = () => s.remove();
