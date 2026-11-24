@@ -21,10 +21,11 @@
   --on:#2fb35d; --on-dim:#a5dcb8; --off:#e5484d; --off-dim:#f1b2b4; --maybe:#e09a1f;
 }
 :root.nopower{ /* нет света — чёрный фон как на Deye LCD */
-  --bg:#000; --card:#0d0d0d; --card2:#161616; --line:#262626;
-  --text:#eeeeee; --muted:#8c8c8c; --accent:#3d9cf5;
+  --bg:#000; --card:#000; --card2:#0a0a0a; --line:#2c2c2c;
+  --text:#ffffff; --muted:#c4c4c4; --accent:#4aa8ff;
   --on:#3ac569; --on-dim:#2a6b46; --off:#ef5b57; --off-dim:#7a3b3f; --maybe:#e9a93a;
 }
+:root.nopower .card,:root.nopower .chip,:root.nopower .iconbtn{border:1px solid #2c2c2c}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--text);
   font:15px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
