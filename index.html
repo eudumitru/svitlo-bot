@@ -90,7 +90,7 @@ header .grow{flex:1;min-width:0}
 .note{background:color-mix(in srgb,var(--maybe) 14%,transparent);border-radius:12px;padding:9px 12px;margin-bottom:12px;font-size:14px}
 .note.info{background:color-mix(in srgb,var(--accent) 13%,transparent)}
 .bar{touch-action:none}
-.home{margin-top:8px;font-size:14px;font-weight:600;color:var(--text)} .home b{color:var(--text);font-weight:800}
+.home{margin-top:8px;font-size:16px;line-height:1.45;font-weight:600;color:var(--text)} .home b{color:var(--text);font-weight:800}
 .copybox{width:100%;min-height:150px;margin:6px 0 12px;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px;font:14px/1.4 inherit;resize:none}
 .tip{min-height:20px;margin-top:8px;font-size:13.5px;color:var(--muted)}
 /* week */
@@ -555,9 +555,9 @@ function render(){
 
   $("#app").innerHTML = html;
   const hl = document.querySelector(".home");
-  if (hl) { hl.style.whiteSpace = "nowrap"; let fs = 14;   // одна строка, если влезает при ≥12.5px; иначе сплошной текст с переносом
-    while (hl.scrollWidth > hl.clientWidth + 1 && fs > 12.5) { fs -= 0.5; hl.style.fontSize = fs + "px"; }
-    if (hl.scrollWidth > hl.clientWidth + 1) { hl.style.whiteSpace = "normal"; hl.style.fontSize = "13.5px"; } }
+  if (hl) { hl.style.whiteSpace = "nowrap"; let fs = 16;   // одна строка, если влезает при ≥14.5px; иначе сплошной текст с переносом
+    while (hl.scrollWidth > hl.clientWidth + 1 && fs > 14.5) { fs -= 0.5; hl.style.fontSize = fs + "px"; }
+    if (hl.scrollWidth > hl.clientWidth + 1) { hl.style.whiteSpace = "normal"; hl.style.fontSize = "16px"; } }
   // footer
   const upd = (HA_SCH && haSchApplies() && HA_SCH.upd ? `${HA_SCH.upd} (${HA_SCH.src})` : "") || RAW.fact && RAW.fact.update || RAW.preset && RAW.preset.updateFact || "";
   const c = CHECKED ? kyiv(CHECKED) : null;
