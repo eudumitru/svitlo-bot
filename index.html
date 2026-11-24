@@ -183,7 +183,7 @@ const T = {
     disclaimer:"Неофіційний застосунок, не пов'язаний з енергокомпаніями", tomorrowAt:"завтра о", at:"о",
     mon:["Пн","Вт","Ср","Чт","Пт","Сб","Нд"], months:["січ.","лют.","бер.","квіт.","трав.","черв.","лип.","серп.","вер.","жовт.","лист.","груд."],
     copied:"Графік скопійовано", shareHead:"Графік відключень", noData:"Не вдалося завантажити дані. Спробуйте ще раз.",
-    tapSlot:"Торкніться або проведіть пальцем по шкалі, щоб побачити час",home:"Вдома",homeOn:"світло є",homeOff:"світла немає",inv:"від інвертора",use:"витрата",batt:"батарея",rt:"вистачить на",since:"з",bySched:"За графіком",copyFail:"Не вдалося скопіювати — виділіть текст і скопіюйте вручну",copyTitle:"Графік",volt:"Напруга мережі",softPick:"зарядка обрала",manualLim:"зарядка вручну",charging:"заряджається",kw:"кВт",nowA:"зараз", left:"залишилось", whole:"весь день"},
+    tapSlot:"Торкніться або проведіть пальцем по шкалі, щоб побачити час",home:"Вдома",homeOn:"світло є",homeOff:"світла немає",inv:"від інвертора",use:"витрата",batt:"батарея",rt:"вистачить на",since:"з",bySched:"За графіком",copyFail:"Не вдалося скопіювати — виділіть текст і скопіюйте вручну",copyTitle:"Графік",volt:"Напруга мережі",softPick:"зарядка обрала",manualLim:"зарядка вручну",charging:"заряджається",kw:"кВт",nowA:"зараз",full:"до повної", left:"залишилось", whole:"весь день"},
   ru:{title:"График отключений",queue:"Очередь",region:"Регион",lang:"Язык",done:"Готово",
     on:"Свет есть",off:"Света нет",maybe:"Возможно отключение",
     until:"до",in:"через",turnOn:"Включат в",nextOff:"Следующее отключение",nextMaybe:"Возможное отключение",
@@ -197,7 +197,7 @@ const T = {
     disclaimer:"Неофициальное приложение, не связано с энергокомпаниями", tomorrowAt:"завтра в", at:"в",
     mon:["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], months:["янв.","фев.","мар.","апр.","мая","июн.","июл.","авг.","сен.","окт.","ноя.","дек."],
     copied:"График скопирован", shareHead:"График отключений", noData:"Не удалось загрузить данные. Попробуйте ещё раз.",
-    tapSlot:"Коснитесь или проведите пальцем по шкале, чтобы увидеть время",home:"Дома",homeOn:"свет есть",homeOff:"света нет",inv:"от инвертора",use:"расход",batt:"батарея",rt:"хватит на",since:"с",bySched:"По графику",copyFail:"Не удалось скопировать — выделите текст и скопируйте вручную",copyTitle:"График",volt:"Напряжение сети",softPick:"зарядка выбрала",manualLim:"зарядка вручную",charging:"заряжается",nowA:"сейчас",kw:"кВт", left:"осталось", whole:"весь день"},
+    tapSlot:"Коснитесь или проведите пальцем по шкале, чтобы увидеть время",home:"Дома",homeOn:"свет есть",homeOff:"света нет",inv:"от инвертора",use:"расход",batt:"батарея",rt:"хватит на",since:"с",bySched:"По графику",copyFail:"Не удалось скопировать — выделите текст и скопируйте вручную",copyTitle:"График",volt:"Напряжение сети",softPick:"зарядка выбрала",manualLim:"зарядка вручную",charging:"заряжается",nowA:"сейчас",full:"до полной",kw:"кВт", left:"осталось", whole:"весь день"},
   en:{title:"Outage schedule",queue:"Queue",region:"Region",lang:"Language",done:"Done",
     on:"Power is on",off:"No power",maybe:"Possible outage",
     until:"until",in:"in",turnOn:"Back on at",nextOff:"Next outage",nextMaybe:"Possible outage",
@@ -211,7 +211,7 @@ const T = {
     disclaimer:"Unofficial app, not affiliated with energy companies", tomorrowAt:"tomorrow at", at:"at",
     mon:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"], months:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
     copied:"Schedule copied", shareHead:"Outage schedule", noData:"Couldn't load data. Please try again.",
-    tapSlot:"Tap or slide your finger along the bar to see the time",home:"Home",homeOn:"power on",homeOff:"no power",inv:"from inverter",use:"load",batt:"battery",rt:"lasts",since:"since",bySched:"By schedule",copyFail:"Couldn't copy \u2014 select the text and copy it manually",copyTitle:"Schedule",volt:"Grid voltage",softPick:"charging picked",manualLim:"manual charging",charging:"charging",nowA:"now",kw:"kW",
+    tapSlot:"Tap or slide your finger along the bar to see the time",home:"Home",homeOn:"power on",homeOff:"no power",inv:"from inverter",use:"load",batt:"battery",rt:"lasts",since:"since",bySched:"By schedule",copyFail:"Couldn't copy \u2014 select the text and copy it manually",copyTitle:"Schedule",volt:"Grid voltage",softPick:"charging picked",manualLim:"manual charging",charging:"charging",nowA:"now",full:"full in",kw:"kW",
     left:"left", whole:"all day"}
 };
 
@@ -435,7 +435,10 @@ function render(){
       const dec = S.lang === "en" ? "." : ",";
       const fA = x => (x < 10 ? x.toFixed(2) : x.toFixed(1)).replace(".", dec);   // точный ток: 0,56 A / 37,2 A
       const fV = x => (Number.isInteger(x) ? String(x) : x.toFixed(1)).replace(".", dec);
-      const pwr = real === 1 && HOME.v ? ` · <b class="lv${fl("v")}">${fV(HOME.v)}&nbsp;V</b>` + (HOME.lim !== null ? ` · ⚡&nbsp;${esc(HOME.auto ? L().softPick : L().manualLim)} <b class="lv${fl("lim")}">${HOME.lim}&nbsp;A</b> ` + (HOME.ia !== null ? `(${esc(L().nowA)}&nbsp;<span class="lv${fl("ia")}">${fA(HOME.ia)}&nbsp;A</span>)` : `(≈${kw}&nbsp;${esc(L().kw)})`) : "") : "";
+      const pwr = real === 1 && HOME.v ? ` · <b class="lv${fl("v")}">${fV(HOME.v)}&nbsp;V</b>` + (HOME.lim !== null ? ` · ⚡&nbsp;${esc(HOME.auto ? L().softPick : L().manualLim)} <b class="lv${fl("lim")}">${HOME.lim}&nbsp;A</b> ` + (HOME.ia !== null ? `(${esc(L().nowA)}&nbsp;<span class="lv${fl("ia")}">${fA(HOME.ia)}&nbsp;A</span>)` : `(≈${kw}&nbsp;${esc(L().kw)})`) : "") +
+        // после скобок: заряд батареи и сколько ещё до 100 % при нынешнем токе (ёмкость 314 А·ч)
+        (HOME.soc !== null ? ` · 🔋&nbsp;<span class="lv${fl("soc")}">${HOME.soc}%</span>` +
+          (HOME.soc < 100 && HOME.ia !== null && HOME.ia > 0.3 ? ` · ⏳&nbsp;${esc(L().full)} <b>≈${esc(batLeft((100 - HOME.soc)/100*BAT_AH/HOME.ia*60))}</b>` : "") : "") : "";
       // сети нет, но инвертор держит дом: 🏠 Дома: свет есть · от инвертора · 232,7 V · расход 1736 W (батарея 35,7 A) · 🔋 99%
       const inv = real === 0 && HOME.lv !== null && HOME.lv > 150;
       const invTxt = inv ? ` · ${esc(L().inv)} · <b class="lv${fl("lv")}">${fV(HOME.lv)}&nbsp;V</b>` +
